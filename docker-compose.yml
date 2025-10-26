@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  mfaa-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: mfaa-dev
+    volumes:
+      - .:/app
+      - ./output:/output
+    environment:
+      - PYTHONUNBUFFERED=1
+      - MFAA_OUTPUT_DIR=/output
+    privileged: true
+    stdin_open: true
+    tty: true
+
+  mfaa-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: mfaa-prod
+    volumes:
+      - ./output:/output
+    environment:
+      - PYTHONUNBUFFERED=1
+      - MFAA_OUTPUT_DIR=/output
+    privileged: true

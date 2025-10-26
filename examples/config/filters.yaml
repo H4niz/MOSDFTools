@@ -1,0 +1,73 @@
+# Filter Configuration for mFAA
+# This file defines rules for filtering FSEvents
+
+# Event types to include (empty = all)
+event_types:
+  - ItemRemoved
+  - ItemCreated
+  - ItemRenamed
+  - ItemModified
+
+# Path patterns (regex supported)
+paths:
+  include:
+    - "^/Users/.*/Downloads/"
+    - "^/Applications/"
+    - "^/tmp/"
+    - "^/var/tmp/"
+    - "^/Users/.*/Library/LaunchAgents/"
+    - "^/Library/LaunchDaemons/"
+    - "^/Users/.*/Desktop/"
+    - "^/Users/.*/Documents/"
+  exclude:
+    - "^/System/Library/"
+    - "^/private/var/log/"
+    - "^/Library/Caches/"
+    - "^/Users/.*/Library/Caches/"
+
+# File extensions to focus on
+extensions:
+  executables:
+    - .app
+    - .command
+    - .sh
+    - .bash
+    - .zsh
+    - .py
+    - .pl
+    - .rb
+    - .jar
+    - .pkg
+  documents:
+    - .pdf
+    - .doc
+    - .docx
+    - .xls
+    - .xlsx
+    - .ppt
+    - .pptx
+    - .txt
+  archives:
+    - .zip
+    - .tar
+    - .gz
+    - .bz2
+    - .dmg
+    - .iso
+  suspicious:
+    - .exe
+    - .dll
+    - .scr
+    - .encrypted
+    - .locked
+    - .crypt
+
+# Time range filter (optional)
+# Uncomment and set dates to filter by time range
+# time_range:
+#   start: "2025-10-01T00:00:00Z"
+#   end: "2025-10-26T23:59:59Z"
+
+# Minimum priority score (0-100)
+# Events below this score will be filtered out
+min_priority: 40

@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="{{ theme }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>mFAA Executive Summary</title>
+
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .container {
+            max-width: 900px;
+            margin-top: 30px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .stat-card {
+            text-align: center;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            background: white;
+            margin-bottom: 20px;
+        }
+
+        .stat-card h2 {
+            font-size: 3rem;
+            font-weight: bold;
+            margin: 15px 0;
+        }
+
+        .stat-card p {
+            color: #6c757d;
+            font-size: 1.1rem;
+        }
+
+        .severity-critical { border-left: 5px solid #dc3545; }
+        .severity-high { border-left: 5px solid #fd7e14; }
+        .severity-medium { border-left: 5px solid #ffc107; }
+        .severity-low { border-left: 5px solid #28a745; }
+
+        .chart-container {
+            height: 300px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .pattern-list {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .pattern-item {
+            padding: 15px;
+            border-left: 4px solid;
+            margin-bottom: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+
+        .pattern-item.critical { border-left-color: #dc3545; }
+        .pattern-item.high { border-left-color: #fd7e14; }
+        .pattern-item.medium { border-left-color: #ffc107; }
+        .pattern-item.low { border-left-color: #28a745; }
+
+        .event-item {
+            padding: 10px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .event-item:last-child {
+            border-bottom: none;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #6c757d;
+            border-top: 1px solid #dee2e6;
+            margin-top: 40px;
+        }
+
+        @media print {
+            .no-print {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1><i class="fas fa-shield-alt"></i> mFAA Executive Summary</h1>
+            <p class="mb-0">macOS Forensics Artifacts Analysis Report</p>
+            <p class="mt-2"><small>Generated: {{ generated_at }}</small></p>
+        </div>
+
+        <!-- Key Metrics -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="stat-card">
+                    <i class="fas fa-database fa-2x text-primary"></i>
+                    <h2>{{ summary.total_events }}</h2>
+                    <p>Total Events Analyzed</p>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="stat-card severity-{{ summary.severity_class }}">
+                    <i class="fas fa-exclamation-triangle fa-2x text-{{ summary.severity_class }}"></i>
+                    <h2>{{ summary.overall_severity }}</h2>
+                    <p>Overall Threat Level</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <h2 class="text-danger">{{ summary.critical_events }}</h2>
+                    <p>Critical Events</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <h2 class="text-warning">{{ summary.high_events }}</h2>
+                    <p>High Priority Events</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <h2 class="text-info">{{ summary.patterns_detected }}</h2>
+                    <p>Patterns Detected</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Time Range -->
+        <div class="stat-card">
+            <h5><i class="far fa-calendar-alt"></i> Analysis Time Range</h5>
+            <p class="mb-1">{{ summary.time_range }}</p>
+            <p class="text-muted mb-0"><small>Duration: {{ summary.duration_hours }} hours</small></p>
+        </div>
+
+        <!-- Priority Distribution Chart -->
+        <div class="chart-container">
+            <h5 class="mb-3"><i class="fas fa-chart-pie"></i> Priority Distribution</h5>
+            <div id="priority-chart"></div>
+        </div>
+
+        <!-- Detected Patterns -->
+        {% if patterns_data %}
+        <div class="pattern-list">
+            <h5 class="mb-3">
+                <i class="fas fa-exclamation-triangle"></i> Detected Threat Patterns
+                <span class="badge bg-danger">{{ patterns_data | length }}</span>
+            </h5>
+
+            {% for pattern in patterns_data %}
+            <div class="pattern-item {{ pattern.severity_class | lower }}">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="mb-1">
+                            <span class="badge bg-{{ pattern.severity_class }}">{{ pattern.severity }}</span>
+                            {{ pattern.type }}
+                        </h6>
+                        <p class="mb-2">{{ pattern.description }}</p>
+                        <p class="text-muted mb-0">
+                            <small>
+                                <i class="far fa-clock"></i> {{ pattern.start_time }}
+                                | <i class="fas fa-list"></i> {{ pattern.event_count }} events
+                                | <i class="fas fa-folder-open"></i> {{ pattern.affected_paths_count }} paths
+                            </small>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Critical Events -->
+        {% if critical_events %}
+        <div class="pattern-list">
+            <h5 class="mb-3">
+                <i class="fas fa-flag"></i> Top Critical Events
+                <span class="badge bg-danger">{{ critical_events | length }}</span>
+            </h5>
+
+            {% for event in critical_events %}
+            <div class="event-item">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <strong>{{ event.path }}</strong><br>
+                        <small class="text-muted">
+                            {{ event.timestamp }} | {{ event.event_types }}
+                        </small>
+                    </div>
+                    <div>
+                        <span class="badge bg-{{ event.priority_class }}">
+                            {{ event.priority_category }}
+                        </span>
+                        <span class="badge bg-secondary">{{ event.priority_score }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Recommendations -->
+        <div class="pattern-list">
+            <h5 class="mb-3"><i class="fas fa-lightbulb"></i> Recommendations</h5>
+
+            {% if summary.overall_severity == 'CRITICAL' %}
+            <div class="alert alert-danger">
+                <strong><i class="fas fa-exclamation-circle"></i> Immediate Action Required</strong>
+                <ul class="mb-0 mt-2">
+                    <li>Isolate affected systems immediately</li>
+                    <li>Review all critical events and patterns</li>
+                    <li>Check for data exfiltration indicators</li>
+                    <li>Perform malware scan on affected files</li>
+                    <li>Contact incident response team</li>
+                </ul>
+            </div>
+            {% elif summary.overall_severity == 'HIGH' %}
+            <div class="alert alert-warning">
+                <strong><i class="fas fa-exclamation-triangle"></i> High Priority Review</strong>
+                <ul class="mb-0 mt-2">
+                    <li>Review high-priority events within 24 hours</li>
+                    <li>Investigate detected patterns</li>
+                    <li>Check quarantined files</li>
+                    <li>Monitor system for further suspicious activity</li>
+                </ul>
+            </div>
+            {% else %}
+            <div class="alert alert-info">
+                <strong><i class="fas fa-info-circle"></i> Standard Monitoring</strong>
+                <ul class="mb-0 mt-2">
+                    <li>Continue regular security monitoring</li>
+                    <li>Review flagged events during routine audits</li>
+                    <li>Maintain current security policies</li>
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p class="mb-0">Generated by <strong>mFAA v1.0.0</strong></p>
+            <p class="text-muted mb-0">
+                <small>macOS Forensics Artifacts Analyzer | For detailed analysis, see full report</small>
+            </p>
+            <button class="btn btn-primary btn-sm mt-3 no-print" onclick="window.print()">
+                <i class="fas fa-print"></i> Print Report
+            </button>
+        </div>
+    </div>
+
+    <!-- Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-2.26.0.min.js"></script>
+
+    <script>
+        // Priority Distribution Chart
+        const priorityData = {{ charts_data.priority_distribution | safe }};
+        const priorityLayout = {
+            height: 250,
+            showlegend: true,
+            margin: { t: 0, b: 0, l: 0, r: 0 },
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)'
+        };
+        Plotly.newPlot('priority-chart', [priorityData], priorityLayout, {responsive: true});
+    </script>
+</body>
+</html>

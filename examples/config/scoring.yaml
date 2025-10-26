@@ -1,0 +1,90 @@
+# Priority Scoring Configuration for mFAA
+# This file defines weights for calculating event priority scores
+
+# Event type weights (0-10)
+# Higher values = more suspicious
+event_types:
+  ItemRemoved: 10
+  ItemCreated: 5
+  ItemRenamed: 7
+  ItemModified: 3
+  XAttrMod: 4
+  ChangeOwner: 6
+  InodeMetaMod: 3
+  FinderInfoMod: 2
+
+# Path sensitivity weights (0-10)
+# Regex patterns with associated weights
+paths:
+  "^/System/": 10
+  "^/Library/LaunchDaemons/": 10
+  "^/Users/.*/Library/LaunchAgents/": 9
+  "^/Applications/": 8
+  "^/Users/.*/Downloads/": 7
+  "^/usr/bin/": 9
+  "^/usr/sbin/": 9
+  "^/bin/": 9
+  "^/sbin/": 9
+  "^/Users/.*/Desktop/": 6
+  "^/Users/.*/Documents/": 5
+  "^/Users/": 5
+  "^/tmp/": 6
+  "^/var/tmp/": 6
+  "^/private/tmp/": 6
+
+# File type risk weights (0-10)
+# Extension-based risk scoring
+file_types:
+  .app: 10
+  .command: 10
+  .sh: 9
+  .bash: 9
+  .zsh: 9
+  .py: 7
+  .pl: 7
+  .rb: 7
+  .jar: 8
+  .pkg: 8
+  .dmg: 7
+  .iso: 7
+  .exe: 10
+  .dll: 10
+  .scr: 10
+  .encrypted: 10
+  .locked: 10
+  .crypt: 10
+  .pdf: 3
+  .doc: 3
+  .docx: 3
+  .xls: 3
+  .xlsx: 3
+  .zip: 6
+  .tar: 6
+  .gz: 6
+
+# Bonus points for specific attributes
+bonuses:
+  has_quarantine_flag: 5
+  downloaded_from_internet: 5
+  in_sensitive_location: 10
+  suspicious_extension: 8
+
+# Priority categories
+# Define score ranges for each category
+categories:
+  critical:
+    min_score: 80
+    max_score: 100
+    description: "Requires immediate attention"
+  high:
+    min_score: 60
+    max_score: 79
+    description: "High priority investigation"
+  medium:
+    min_score: 40
+    max_score: 59
+    description: "Medium priority review"
+  low:
+    min_score: 0
+    max_score: 39
+    description: "Low priority or informational"

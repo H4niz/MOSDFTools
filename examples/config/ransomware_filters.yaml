@@ -1,0 +1,62 @@
+# Ransomware-Focused Filter Configuration
+# Optimized for detecting ransomware activity
+
+event_types:
+  - ItemRemoved
+  - ItemRenamed
+  - ItemCreated
+  - ItemModified
+
+paths:
+  include:
+    - "^/Users/.*/Documents/"
+    - "^/Users/.*/Desktop/"
+    - "^/Users/.*/Pictures/"
+    - "^/Users/.*/Downloads/"
+    - "^/Volumes/"  # External drives
+  exclude:
+    - "^/System/"
+    - "^/Library/Caches/"
+
+extensions:
+  # Focus on file types commonly targeted by ransomware
+  documents:
+    - .pdf
+    - .doc
+    - .docx
+    - .xls
+    - .xlsx
+    - .ppt
+    - .pptx
+    - .txt
+    - .rtf
+    - .pages
+    - .numbers
+    - .keynote
+  media:
+    - .jpg
+    - .jpeg
+    - .png
+    - .gif
+    - .mp4
+    - .mov
+    - .avi
+  archives:
+    - .zip
+    - .rar
+    - .7z
+  # Ransomware extensions
+  suspicious:
+    - .encrypted
+    - .locked
+    - .crypt
+    - .enc
+    - .vault
+    - .crypted
+    - .crypto
+    - .locky
+    - .cerber
+    - .zepto
+
+# Low threshold to catch all potential activity
+min_priority: 30

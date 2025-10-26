@@ -1,0 +1,43 @@
+# Production Dockerfile for mFAA
+FROM python:3.11-slim
+
+LABEL maintainer="Digital Forensics Team"
+LABEL description="macOS Forensics Artifacts Analyzer - Production"
+LABEL version="1.0.0"
+
+# Set working directory
+WORKDIR /app
+
+# Install minimal system dependencies
+RUN apt-get update && apt-get install -y \
+    --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements first for better caching
+COPY requirements.txt ./
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY mfaa/ ./mfaa/
+COPY setup.py ./
+
+# Install package
+RUN pip install --no-cache-dir .
+
+# Create output directory
+RUN mkdir -p /output
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV MFAA_OUTPUT_DIR=/output
+
+# Use non-root user for security (where possible)
+# Note: FSEvents collection requires elevated privileges
+RUN useradd -m -u 1000 forensics
+USER forensics
+
+# Default command
+ENTRYPOINT ["mfaa"]
+CMD ["--help"]

@@ -1,0 +1,84 @@
+MOSDFTools - macOS Forensics Artifacts Analyzer
+================================================
+
+Project Structure Overview
+--------------------------
+
+📁 Root
+├── 📄 BRD.md                       # Business Requirements Document
+├── 📄 CLAUDE.md                    # Claude Code development guide
+├── 📄 README.md                    # User documentation
+├── 📄 LICENSE                      # MIT License
+├── 📄 CHANGELOG.md                 # Version history
+├── 📄 Makefile                     # Development commands
+├── 📄 setup.py                     # Package configuration
+├── 📄 pytest.ini                   # Test configuration
+├── 📄 requirements.txt             # Core dependencies
+├── 📄 requirements-dev.txt         # Dev dependencies
+├── 📄 .gitignore                   # Git exclusions
+├── 📄 .dockerignore                # Docker exclusions
+├── 🐳 Dockerfile.dev               # Development container
+├── 🐳 Dockerfile.prod              # Production container
+└── 🐳 docker-compose.yml           # Container orchestration
+
+📦 mfaa/ (Main Package)
+├── 📄 __init__.py
+├── 📄 models.py                    # Data models (FSEvent, XattrRecord, etc.)
+├── 📄 cli.py                       # Command-line interface
+├── 📁 collector/                   # Artifact collection
+│   ├── volume_scanner.py
+│   ├── fsevents_collector.py
+│   ├── xattr_collector.py
+│   └── hash_calculator.py
+├── 📁 parser/                      # Binary parsing
+│   ├── fsevents_parser.py
+│   ├── xattr_parser.py
+│   ├── gzip_handler.py
+│   └── structures.py
+├── 📁 analyzer/                    # Event analysis (to be implemented)
+│   └── __init__.py
+├── 📁 timeline/                    # Timeline generation (to be implemented)
+│   └── __init__.py
+├── 📁 reporter/                    # Report generation (to be implemented)
+│   ├── __init__.py
+│   └── templates/
+└── 📁 utils/                       # Common utilities
+    ├── logger.py
+    ├── config.py
+    ├── validator.py
+    └── exceptions.py
+
+🧪 tests/ (Test Suite)
+├── 📄 conftest.py                  # Pytest fixtures
+├── 📁 unit/                        # Unit tests
+│   └── test_hash_calculator.py
+├── 📁 integration/                 # Integration tests
+├── 📁 e2e/                         # End-to-end tests
+├── 📁 performance/                 # Performance tests
+├── 📁 security/                    # Security tests
+└── 📁 fixtures/                    # Test data
+    ├── fsevents/
+    ├── xattr/
+    └── scenarios/
+
+📚 examples/ (Examples & Configs)
+├── 📁 config/
+│   ├── filters.yaml
+│   ├── scoring.yaml
+│   └── ransomware_filters.yaml
+├── 📁 reports/
+└── 📁 scenarios/
+
+📖 docs/                            # Documentation
+📝 scripts/                         # Generated scripts
+📋 changes_logs/                    # Change logs
+    └── project_initialization.md
+
+Key Files Count
+---------------
+Python files: 24
+Configuration files: 8
+Documentation files: 5
+Docker files: 3
+
+Total Lines of Code (estimated): ~2,500

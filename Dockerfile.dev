@@ -1,0 +1,36 @@
+# Development Dockerfile for mFAA
+FROM python:3.11-slim
+
+LABEL maintainer="Digital Forensics Team"
+LABEL description="macOS Forensics Artifacts Analyzer - Development"
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY requirements.txt requirements-dev.txt ./
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements-dev.txt
+
+# Copy application code
+COPY . .
+
+# Install in development mode
+RUN pip install -e .
+
+# Create output directory
+RUN mkdir -p /output
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV MFAA_OUTPUT_DIR=/output
+
+# Default command (interactive shell for development)
+CMD ["/bin/bash"]
