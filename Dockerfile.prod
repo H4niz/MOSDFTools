@@ -1,43 +1,83 @@
 # Production Dockerfile for mFAA
+# ===========================================
+#
+# This Dockerfile creates a production-ready container for macOS Forensics
+# Artifacts Analyzer (mFAA) optimized for size and security.
+
 FROM python:3.11-slim
 
 LABEL maintainer="Digital Forensics Team"
 LABEL description="macOS Forensics Artifacts Analyzer - Production"
 LABEL version="1.0.0"
 
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    MFAA_OUTPUT_DIR=/output \
+    DEBIAN_FRONTEND=noninteractive
+
 # Set working directory
 WORKDIR /app
 
-# Install minimal system dependencies
-RUN apt-get update && apt-get install -y \
-    --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/*
+# Install minimal runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Required for extended attributes
+    libattr1 \
+    attr \
+    # System utilities
+    sudo \
+    procps \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Upgrade pip
+RUN pip install --upgrade pip
 
 # Copy requirements first for better caching
 COPY requirements.txt ./
 
 # Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt && \
+    rm -rf /root/.cache/pip/*
 
 # Copy application code
 COPY mfaa/ ./mfaa/
-COPY setup.py ./
+COPY setup.py README.md CLAUDE.md ./
 
 # Install package
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir . && \
+    rm -rf /root/.cache/pip/*
 
-# Create output directory
-RUN mkdir -p /output
+# Create directories
+RUN mkdir -p /output /data /artifacts && \
+    chmod 755 /output /data /artifacts
 
-# Set environment variables
-ENV PYTHONUNBUFFERED=1
-ENV MFAA_OUTPUT_DIR=/output
+# Security: Create non-privileged user
+# Note: Forensics collection requires root, but analysis can run as non-root
+RUN useradd -r -u 1001 -s /bin/false forensics && \
+    chown -R forensics:forensics /app /output /data /artifacts
 
-# Use non-root user for security (where possible)
-# Note: FSEvents collection requires elevated privileges
-RUN useradd -m -u 1000 forensics
-USER forensics
+# Add health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import mfaa; print('OK')" || exit 1
 
-# Default command
-ENTRYPOINT ["mfaa"]
+# Expose volume mount points
+VOLUME ["/output", "/data", "/artifacts"]
+
+# Use root by default (required for forensics collection)
+# Switch to non-root user if only running analysis
+USER root
+
+# Set entrypoint to mFAA CLI
+ENTRYPOINT ["python", "-m", "mfaa.cli"]
+
+# Default command - show help
 CMD ["--help"]
+
+# Usage examples:
+# Build: docker build -f Dockerfile.prod -t mfaa:prod .
+# Run gather: docker run --rm -v $(pwd)/output:/output mfaa:prod gather --volume /data
+# Run collect: docker run --rm --privileged -v /Volumes/MacHD:/data -v $(pwd)/output:/output mfaa:prod collect --volume /data --output /output
+# Run parse: docker run --rm -v $(pwd)/artifacts:/data -v $(pwd)/output:/output mfaa:prod parse /data/fsevents --output /output/timeline.json
+# Run analyze: docker run --rm -v $(pwd)/artifacts:/data -v $(pwd)/output:/output mfaa:prod analyze /data --output /output/reports

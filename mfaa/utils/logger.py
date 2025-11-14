@@ -32,6 +32,9 @@ def setup_logger(
     logger = logging.getLogger(name)
     logger.setLevel(level)
 
+    # Prevent propagation to root logger to avoid duplicates
+    logger.propagate = False
+
     # Prevent duplicate handlers
     if logger.handlers:
         return logger

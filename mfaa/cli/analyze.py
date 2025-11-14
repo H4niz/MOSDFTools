@@ -159,42 +159,97 @@ def analyze(ctx, volume, output, format, filter_config, min_priority, time_range
 
             click.echo(f"Target: {target_volume.mount_point}")
 
-            collector = FSEventsCollector(calculate_hashes=True)
-            with click.progressbar(length=1, label='Collecting', show_eta=False) as bar:
-                result = collector.collect_from_volume(
-                    target_volume,
-                    analysis_dir / "collected"
+            # Step 1a: Try to collect FSEvents
+            collection_successful = False
+            try:
+                collector = FSEventsCollector(
+                    output_dir=analysis_dir / "collected",
+                    verify_hashes=True
                 )
-                bar.update(1)
+                with click.progressbar(length=1, label='Collecting', show_eta=False) as bar:
+                    result = collector.collect(target_volume)
+                    bar.update(1)
 
-            click.echo(click.style(f"✓ Collected {len(result.collected_files)} files", fg='green'))
+                click.echo(click.style(f"✓ Collected {result.files_copied} files", fg='green'))
+                collection_successful = True
 
-            # Step 2: Parse
-            click.echo("\n📊 Step 2/5: Parsing FSEvents")
-            click.echo("-" * 60)
+            except Exception as e:
+                click.echo(click.style(f"⚠️  FSEvents collection failed: {e}", fg='yellow'))
+                click.echo(click.style("⚠️  Continuing with alternative data sources...", fg='yellow'))
+                if verbose:
+                    import traceback
+                    traceback.print_exc()
 
-            parser = FSEventsParser()
-            fsevents_dir = analysis_dir / "collected"
+            # Step 2: Parse (only if collection succeeded)
+            if collection_successful:
+                click.echo("\n📊 Step 2/5: Parsing FSEvents")
+                click.echo("-" * 60)
 
-            files = list(fsevents_dir.glob('*'))
-            fsevents_files = [f for f in files if f.is_file() and not f.name.startswith('.')]
+                try:
+                    parser = FSEventsParser()
+                    fsevents_dir = analysis_dir / "collected"
 
-            with click.progressbar(
-                fsevents_files,
-                label='Parsing files',
-                show_eta=True
-            ) as bar:
-                for file_path in bar:
-                    try:
-                        file_events = parser.parse_file(file_path)
-                        events.extend(file_events)
-                    except:
-                        pass
+                    # Find all collected files recursively
+                    files = list(fsevents_dir.rglob('*'))
+                    fsevents_files = [f for f in files if f.is_file() and not f.name.startswith('.')]
 
-            click.echo(click.style(f"✓ Parsed {len(events)} events", fg='green'))
+                    if not fsevents_files:
+                        click.echo(click.style("⚠️  No FSEvents files found to parse", fg='yellow'))
+                    else:
+                        with click.progressbar(
+                            fsevents_files,
+                            label='Parsing files',
+                            show_eta=True
+                        ) as bar:
+                            for file_path in bar:
+                                try:
+                                    file_events = parser.parse_file(file_path)
+                                    events.extend(file_events)
+                                except Exception as parse_error:
+                                    if verbose:
+                                        logger.warning(f"Failed to parse {file_path.name}: {parse_error}")
 
+                        click.echo(click.style(f"✓ Parsed {len(events)} events", fg='green'))
+
+                except Exception as e:
+                    click.echo(click.style(f"⚠️  Parsing failed: {e}", fg='yellow'))
+                    if verbose:
+                        import traceback
+                        traceback.print_exc()
+            else:
+                click.echo("\n📊 Step 2/5: Parsing FSEvents")
+                click.echo("-" * 60)
+                click.echo(click.style("⚠️  Skipped (collection failed)", fg='yellow'))
+
+        # If no events from FSEvents, try to provide helpful information
         if not events:
-            click.echo(click.style("❌ No events to analyze!", fg='red'))
+            click.echo(click.style("\n❌ No FSEvents data available for analysis", fg='red'))
+            click.echo("\n" + "=" * 60)
+            click.echo(click.style("📋 Alternative Investigation Options:", fg='cyan', bold=True))
+            click.echo("=" * 60)
+
+            click.echo("\n1. Use the gather command to see available artifacts:")
+            click.echo("   mfaa gather --volume / --output artifacts_scan.json")
+
+            click.echo("\n2. Try the Data volume directly:")
+            click.echo("   sudo mfaa analyze --volume /System/Volumes/Data --output ./analysis")
+
+            click.echo("\n3. Collect other forensic artifacts manually:")
+            click.echo("   • Chrome/Safari History: Browser browsing data")
+            click.echo("   • System Logs: /var/log/")
+            click.echo("   • Quarantine DB: Download/quarantine information")
+            click.echo("   • Launch Agents/Daemons: Persistence mechanisms")
+
+            click.echo("\n4. Check if FSEvents are available:")
+            click.echo("   ls -la /.fseventsd")
+            click.echo("   ls -la /System/Volumes/Data/.fseventsd")
+
+            click.echo("\n" + "=" * 60)
+            click.echo(click.style("💡 Tip:", fg='yellow', bold=True) + " On macOS Catalina+, FSEvents may be on")
+            click.echo("   the Data volume. Try running gather first to identify")
+            click.echo("   available forensic artifacts.")
+            click.echo("=" * 60)
+
             sys.exit(1)
 
         # Step 3: Filter and Score

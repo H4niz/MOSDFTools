@@ -70,3 +70,6 @@ case_data/
 tmp/
 temp/
 *.tmp
+/changes_logs
+/scripts
+/tests

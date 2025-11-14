@@ -1,19 +1,53 @@
 # Development Dockerfile for mFAA
+# ===========================================
+#
+# This Dockerfile creates a development environment for macOS Forensics
+# Artifacts Analyzer (mFAA) with all necessary tools and dependencies.
+
 FROM python:3.11-slim
 
 LABEL maintainer="Digital Forensics Team"
 LABEL description="macOS Forensics Artifacts Analyzer - Development"
+LABEL version="1.0.0"
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    MFAA_OUTPUT_DIR=/output \
+    DEBIAN_FRONTEND=noninteractive
 
 # Set working directory
 WORKDIR /app
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Build essentials
     build-essential \
+    gcc \
+    g++ \
+    make \
+    # System utilities
+    sudo \
+    procps \
     git \
-    && rm -rf /var/lib/apt/lists/*
+    vim \
+    nano \
+    curl \
+    wget \
+    # Required for extended attributes
+    libattr1-dev \
+    attr \
+    # Development tools
+    tree \
+    less \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
-# Copy requirements
+# Upgrade pip and install build tools
+RUN pip install --upgrade pip setuptools wheel
+
+# Copy requirements files
 COPY requirements.txt requirements-dev.txt ./
 
 # Install Python dependencies
@@ -25,12 +59,26 @@ COPY . .
 # Install in development mode
 RUN pip install -e .
 
-# Create output directory
-RUN mkdir -p /output
+# Create directories
+RUN mkdir -p /output /data /artifacts && \
+    chmod 777 /output /data /artifacts
 
-# Set environment variables
-ENV PYTHONUNBUFFERED=1
-ENV MFAA_OUTPUT_DIR=/output
+# Configure development environment
+RUN echo 'alias ll="ls -lah"' >> /root/.bashrc && \
+    echo 'alias mfaa="python -m mfaa.cli"' >> /root/.bashrc && \
+    echo 'export PS1="\[\e[36m\]mfaa-dev\[\e[m\]:\[\e[33m\]\w\[\e[m\]\$ "' >> /root/.bashrc
 
-# Default command (interactive shell for development)
+# Expose volume mount points
+VOLUME ["/output", "/data", "/artifacts"]
+
+# Set default user (root for forensics work)
+USER root
+
+# Default command - interactive shell for development
 CMD ["/bin/bash"]
+
+# Usage examples:
+# Build: docker build -f Dockerfile.dev -t mfaa:dev .
+# Run interactively: docker run -it --privileged -v $(pwd)/output:/output mfaa:dev
+# Run with mounted volume: docker run -it --privileged -v /Volumes/MacHD:/data -v $(pwd)/output:/output mfaa:dev
+# Run tests: docker run --rm mfaa:dev pytest -v

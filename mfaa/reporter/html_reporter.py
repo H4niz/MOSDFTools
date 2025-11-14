@@ -353,6 +353,38 @@ class HTMLReporter(BaseReporter):
 
         return patterns_data
 
+    def _prepare_event_row(self, entry: 'TimelineEntry') -> Dict[str, Any]:
+        """
+        Prepare single event data for table row.
+
+        Args:
+            entry: TimelineEntry object
+
+        Returns:
+            Event dictionary
+        """
+        event = entry.event
+
+        # Priority badge class
+        priority_class_map = {
+            'CRITICAL': 'danger',
+            'HIGH': 'warning',
+            'MEDIUM': 'info',
+            'LOW': 'success'
+        }
+
+        return {
+            'event_id': event.event_id,
+            'timestamp': event.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+            'path': str(event.path),
+            'event_types': ', '.join(et.value for et in event.event_types),
+            'priority_score': entry.priority_score,
+            'priority_category': entry.priority_category,
+            'priority_class': priority_class_map.get(entry.priority_category, 'secondary'),
+            'has_quarantine': entry.xattr and entry.xattr.has_quarantine,
+            'is_downloaded': entry.xattr and entry.xattr.is_downloaded
+        }
+
     def _prepare_events_table(self, timeline: Timeline) -> List[Dict[str, Any]]:
         """
         Prepare events data for interactive table.
@@ -363,32 +395,7 @@ class HTMLReporter(BaseReporter):
         Returns:
             List of event dictionaries
         """
-        events_data = []
-
-        for entry in timeline.entries:
-            event = entry.event
-
-            # Priority badge class
-            priority_class_map = {
-                'CRITICAL': 'danger',
-                'HIGH': 'warning',
-                'MEDIUM': 'info',
-                'LOW': 'success'
-            }
-
-            events_data.append({
-                'event_id': event.event_id,
-                'timestamp': event.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
-                'path': str(event.path),
-                'event_types': ', '.join(et.value for et in event.event_types),
-                'priority_score': entry.priority_score,
-                'priority_category': entry.priority_category,
-                'priority_class': priority_class_map.get(entry.priority_category, 'secondary'),
-                'has_quarantine': entry.xattr and entry.xattr.has_quarantine,
-                'is_downloaded': entry.xattr and entry.xattr.is_downloaded
-            })
-
-        return events_data
+        return [self._prepare_event_row(entry) for entry in timeline.entries]
 
     def _prepare_correlation_graph(self, timeline: Timeline) -> str:
         """
@@ -477,7 +484,7 @@ class HTMLReporter(BaseReporter):
             'summary': self._build_summary(timeline),
             'patterns_data': self._prepare_patterns_data(timeline),
             'critical_events': [
-                self._prepare_events_table([e])[0]
+                self._prepare_event_row(e)
                 for e in timeline.entries
                 if e.priority_category in ['CRITICAL', 'HIGH']
             ][:20],  # Top 20 only

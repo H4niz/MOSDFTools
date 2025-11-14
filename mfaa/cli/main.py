@@ -14,6 +14,7 @@ from mfaa.cli.collect import collect
 from mfaa.cli.parse_cmd import parse
 from mfaa.cli.analyze import analyze
 from mfaa.cli.report_cmd import report as report_cmd
+from mfaa.cli.gather import gather
 
 
 @click.group()
@@ -29,6 +30,9 @@ def cli(ctx, verbose, debug):
 
     \b
     Usage Examples:
+        # Scan for available artifacts
+        mfaa gather --volume /
+
         # Full analysis of current system
         sudo mfaa analyze --output ./reports
 
@@ -62,6 +66,7 @@ def cli(ctx, verbose, debug):
 
 
 # Register commands
+cli.add_command(gather)
 cli.add_command(collect)
 cli.add_command(parse)
 cli.add_command(analyze)
