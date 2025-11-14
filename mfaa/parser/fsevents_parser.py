@@ -52,11 +52,26 @@ class FSEventsParser:
         logger.debug(f"Parsing FSEvents file: {file_path}")
 
         try:
-            # Check if file is gzipped (v2 format)
+            # Check if file is gzipped (v2/v3 format)
             if self.gzip_handler.is_gzipped(file_path):
-                logger.debug("Detected gzip compression (v2/DLS format)")
+                logger.debug("Detected gzip compression")
                 data = self.gzip_handler.decompress_file(file_path)
-                detected_version = 2
+
+                # Detect version from header signature
+                if len(data) >= 4:
+                    signature = data[0:4]
+                    if signature == b'3SLD':
+                        detected_version = 3
+                        logger.debug("Detected v3 format (3SLD header)")
+                    elif signature in [b'1SLD', b'2SLD', b'DLS2']:
+                        detected_version = 2
+                        logger.debug("Detected v2/DLS format")
+                    else:
+                        # Unknown signature, try v2
+                        detected_version = 2
+                        logger.warning(f"Unknown signature: {signature}, assuming v2")
+                else:
+                    detected_version = 2
             else:
                 logger.debug("Uncompressed format (v1)")
                 with open(file_path, 'rb') as f:
@@ -71,6 +86,8 @@ class FSEventsParser:
                 events = self._parse_v1(data)
             elif version == 2:
                 events = self._parse_v2(data)
+            elif version == 3:
+                events = self._parse_v3(data)
             else:
                 raise ParseError(f"Unsupported FSEvents version: {version}")
 
@@ -279,6 +296,100 @@ class FSEventsParser:
             pass
 
         logger.info(f"Parsed {len(events)} events from v2/DLS format")
+        return events
+
+    def _parse_v3(self, data: bytes) -> List[FSEvent]:
+        """
+        Parse FSEvents version 3 format (macOS Sequoia 15.x).
+
+        Format: Header + simplified record structure
+        Header (12 bytes):
+        - Signature (4 bytes): '3SLD'
+        - Metadata (8 bytes)
+
+        Records:
+        - Event ID (8 bytes, little-endian)
+        - Flags (4 bytes, little-endian)
+        - Node ID (8 bytes, little-endian, inode number)
+        - Padding (5 bytes, zeros)
+        - Path (null-terminated string)
+
+        Args:
+            data: Raw FSEvents data (decompressed)
+
+        Returns:
+            List of FSEvent objects
+        """
+        events = []
+        offset = 0
+        data_len = len(data)
+
+        logger.debug(f"Parsing FSEvents v3 format, data size: {data_len} bytes")
+
+        # Validate header
+        if data_len < 12:
+            raise ParseError("File too small to contain v3 header")
+
+        signature = data[0:4]
+        if signature != b'3SLD':
+            raise ParseError(f"Invalid v3 signature: {signature}")
+
+        logger.debug(f"V3 header signature: {signature.decode('ascii')}")
+        offset = 12  # Skip header
+
+        try:
+            while offset < data_len:
+                # Need at least: event_id (8) + flags (4) + node_id (8) + padding (5) + path (1) = 26 bytes
+                if offset + 26 > data_len:
+                    break
+
+                # Read event ID (8 bytes)
+                event_id, offset = StructParser.unpack_uint64(data, offset)
+
+                # Read flags (4 bytes)
+                flags, offset = StructParser.unpack_uint32(data, offset)
+
+                # Read node ID / inode (8 bytes)
+                node_id, offset = StructParser.unpack_uint64(data, offset)
+
+                # Skip padding (5 bytes)
+                offset += 5
+
+                # Read null-terminated path string
+                try:
+                    path_str, new_offset = StructParser.read_null_terminated_string(data, offset)
+                except ValueError:
+                    # No null terminator found
+                    logger.warning(f"No null terminator found at offset {offset}")
+                    break
+
+                offset = new_offset
+
+                # Skip empty paths
+                if not path_str or path_str == '':
+                    continue
+
+                # Decode flags
+                event_flags = self.decode_flags(flags)
+
+                # Create FSEvent object
+                # Note: v3 doesn't include timestamp in record, use epoch
+                event = FSEvent(
+                    event_id=event_id,
+                    timestamp=datetime.fromtimestamp(0),  # v3 doesn't store timestamp in record
+                    path=Path(path_str),
+                    flags=event_flags,
+                    node_id=node_id if node_id > 0 else None
+                )
+
+                events.append(event)
+
+        except Exception as e:
+            logger.error(f"Error parsing v3 at offset {offset}: {e}")
+            # Return events parsed so far
+            pass
+
+        logger.info(f"Parsed {len(events)} events from v3 format")
         return events
 
     @staticmethod

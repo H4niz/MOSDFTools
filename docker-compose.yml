@@ -1,29 +1,178 @@
+# Docker Compose Configuration for mFAA
+# =======================================
+# macOS Forensics Artifacts Analyzer
+#
+# This docker-compose file provides multiple service configurations:
+# - mfaa-dev: Development environment with hot-reload
+# - mfaa-prod: Production environment for forensics operations
+# - mfaa-test: Testing environment with coverage reporting
+# - mfaa-gather: Service for artifact scanning/gathering
+
 version: '3.8'
 
 services:
+  # Development environment
   mfaa-dev:
     build:
       context: .
       dockerfile: Dockerfile.dev
+      args:
+        - PYTHON_VERSION=3.11
     container_name: mfaa-dev
-    volumes:
-      - .:/app
-      - ./output:/output
-    environment:
-      - PYTHONUNBUFFERED=1
-      - MFAA_OUTPUT_DIR=/output
+    image: mfaa:dev
     privileged: true
+    volumes:
+      # Mount host root for FSEvents collection (read-only for safety)
+      - /:/host:ro
+      # Mount output directory for artifacts
+      - ./output:/output
+      # Mount artifacts directory
+      - ./artifacts:/artifacts
+      # Mount source code for hot-reload in development
+      - ./mfaa:/app/mfaa
+      - ./tests:/app/tests
+      - ./docs:/app/docs
+      # Preserve Python environment
+      - dev-venv:/app/.venv
+    environment:
+      # Python environment
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      # mFAA settings
+      - MFAA_LOG_LEVEL=DEBUG
+      - MFAA_OUTPUT_DIR=/output
+      - MFAA_ARTIFACTS_DIR=/artifacts
+      # Development settings
+      - ENV=development
+      - TESTING=false
+    working_dir: /app
+    command: /bin/bash
     stdin_open: true
     tty: true
+    networks:
+      - mfaa-network
 
+  # Production environment
   mfaa-prod:
     build:
       context: .
       dockerfile: Dockerfile.prod
+      args:
+        - PYTHON_VERSION=3.11
     container_name: mfaa-prod
+    image: mfaa:prod
+    privileged: true
     volumes:
+      # Mount host root for FSEvents collection (read-only)
+      - /:/host:ro
+      # Mount data directory for analysis target
+      - ./data:/data:ro
+      # Mount output directory for results
+      - ./output:/output
+      # Mount artifacts directory
+      - ./artifacts:/artifacts
+    environment:
+      # Python environment
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      # mFAA settings
+      - MFAA_LOG_LEVEL=INFO
+      - MFAA_OUTPUT_DIR=/output
+      - MFAA_ARTIFACTS_DIR=/artifacts
+      # Production settings
+      - ENV=production
+    command: ["--help"]
+    restart: "no"
+    networks:
+      - mfaa-network
+
+  # Gather service - Scan for available artifacts
+  mfaa-gather:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: mfaa-gather
+    image: mfaa:prod
+    volumes:
+      - /:/host:ro
       - ./output:/output
     environment:
       - PYTHONUNBUFFERED=1
+      - MFAA_LOG_LEVEL=INFO
       - MFAA_OUTPUT_DIR=/output
-    privileged: true
+    command: ["gather", "--volume", "/host", "--output", "/output/artifact_scan.json"]
+    restart: "no"
+    networks:
+      - mfaa-network
+
+  # Testing environment
+  mfaa-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: mfaa-test
+    image: mfaa:test
+    volumes:
+      # Mount source code
+      - ./mfaa:/app/mfaa
+      - ./tests:/app/tests
+      # Mount test reports
+      - ./htmlcov:/app/htmlcov
+      - ./test-reports:/app/test-reports
+      # Preserve test environment
+      - test-venv:/app/.venv
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - MFAA_LOG_LEVEL=WARNING
+      - TESTING=true
+      - PYTEST_CURRENT_TEST=1
+    command: ["pytest", "tests/", "-v", "--cov=mfaa", "--cov-report=html", "--cov-report=term"]
+    restart: "no"
+    networks:
+      - mfaa-network
+
+volumes:
+  # Persistent Python virtual environments
+  dev-venv:
+    driver: local
+    name: mfaa-dev-venv
+  test-venv:
+    driver: local
+    name: mfaa-test-venv
+
+networks:
+  mfaa-network:
+    driver: bridge
+    name: mfaa-network
+
+# Usage Examples:
+# ================
+#
+# Development:
+# -----------
+# Start dev environment:        docker-compose up -d mfaa-dev
+# Enter dev shell:              docker-compose exec mfaa-dev bash
+# Run gather:                   docker-compose exec mfaa-dev mfaa gather --volume /host
+# Run tests in dev:             docker-compose exec mfaa-dev pytest -v
+#
+# Production:
+# ----------
+# Run gather scan:              docker-compose run --rm mfaa-gather
+# Run collection:               docker-compose run --rm mfaa-prod collect --volume /host --output /output
+# Run analysis:                 docker-compose run --rm mfaa-prod analyze /artifacts --output /output/reports
+# Run parse:                    docker-compose run --rm mfaa-prod parse /artifacts/fsevents --output /output/timeline.json
+# Generate report:              docker-compose run --rm mfaa-prod report /output/timeline.json --format html --output /output/report.html
+#
+# Testing:
+# -------
+# Run all tests:                docker-compose run --rm mfaa-test
+# Run specific test:            docker-compose run --rm mfaa-test pytest tests/test_artifact_scanner.py -v
+# View coverage:                open htmlcov/index.html
+#
+# Cleanup:
+# -------
+# Stop all containers:          docker-compose down
+# Remove volumes:               docker-compose down -v
+# Remove images:                docker-compose down --rmi all
+# Full cleanup:                 docker-compose down -v --rmi all --remove-orphans

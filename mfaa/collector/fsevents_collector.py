@@ -15,6 +15,7 @@ from mfaa.models import VolumeInfo, CollectionResult
 from mfaa.collector.hash_calculator import HashCalculator
 from mfaa.utils.logger import setup_logger
 from mfaa.utils.exceptions import CollectionError, PermissionError
+from mfaa.utils.macos_helper import MacOSHelper
 
 logger = setup_logger(__name__)
 
@@ -59,10 +60,31 @@ class FSEventsCollector:
         """
         logger.info(f"Collecting FSEvents from: {volume.mount_point}")
 
-        fsevents_path = volume.mount_point / self.FSEVENTS_DIR
+        # Use macOS helper to get correct FSEvents paths based on OS version
+        possible_paths = MacOSHelper.get_fsevents_paths(volume.mount_point)
 
-        if not fsevents_path.exists():
-            raise CollectionError(f"FSEvents directory not found: {fsevents_path}")
+        # Try to find FSEvents in possible locations
+        fsevents_path = None
+        for path in possible_paths:
+            if path.exists():
+                fsevents_path = path
+                if path != volume.mount_point / self.FSEVENTS_DIR:
+                    logger.info(f"Using alternative FSEvents location: {fsevents_path}")
+                break
+
+        if not fsevents_path:
+            # Get macOS version info for better error message
+            try:
+                version = MacOSHelper.get_macos_version()
+                version_info = f" (macOS {version.name} {version.version_string})"
+            except:
+                version_info = ""
+
+            raise CollectionError(
+                f"FSEvents directory not found{version_info}. "
+                f"Searched: {', '.join(str(p) for p in possible_paths)}. "
+                f"Ensure you have proper permissions (try with sudo)."
+            )
 
         # Check read permissions
         if not fsevents_path.is_dir():

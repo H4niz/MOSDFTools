@@ -118,7 +118,11 @@ def collect(ctx, volume, output, include_xattr, verify_hashes):
 
     # Step 2: Collect FSEvents
     click.echo("\n📦 Collecting FSEvents...")
-    fsevents_collector = FSEventsCollector(calculate_hashes=verify_hashes)
+    fsevents_output = collection_dir / "fsevents"
+    fsevents_collector = FSEventsCollector(
+        output_dir=fsevents_output,
+        verify_hashes=verify_hashes
+    )
 
     with click.progressbar(
         length=1,
@@ -126,9 +130,9 @@ def collect(ctx, volume, output, include_xattr, verify_hashes):
         show_eta=False
     ) as bar:
         try:
-            result = fsevents_collector.collect_from_volume(
+            result = fsevents_collector.collect(
                 target_volume,
-                collection_dir / "fsevents"
+                create_log=True
             )
             bar.update(1)
 
