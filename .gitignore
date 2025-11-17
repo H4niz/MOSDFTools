@@ -73,3 +73,6 @@ temp/
 /changes_logs
 /scripts
 /tests
+/test_analysis
+/analysis
+/collected

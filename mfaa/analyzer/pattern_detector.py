@@ -93,6 +93,9 @@ class PatternDetector:
 
             # Check if threshold exceeded
             if len(window_events) >= self.MASS_DELETION_THRESHOLD:
+                # Prevent division by zero when events occur at exact same timestamp
+                deletion_rate = len(window_events) / time_diff if time_diff > 0 else float('inf')
+
                 pattern = Pattern(
                     pattern_type="mass_deletion",
                     severity="CRITICAL",
@@ -103,7 +106,7 @@ class PatternDetector:
                     description=f"Mass deletion detected: {len(window_events)} files "
                                f"deleted in {time_diff:.1f} seconds",
                     indicators={
-                        'deletion_rate': len(window_events) / time_diff,
+                        'deletion_rate': deletion_rate,
                         'time_window': time_diff,
                         'unique_directories': len(set(e.path.parent for e in window_events))
                     }
@@ -351,6 +354,9 @@ class PatternDetector:
 
             # Check if threshold exceeded
             if len(window_events) >= self.RAPID_ACCESS_THRESHOLD:
+                # Prevent division by zero when events occur at exact same timestamp
+                access_rate = len(window_events) / time_diff if time_diff > 0 else float('inf')
+
                 pattern = Pattern(
                     pattern_type="rapid_file_access",
                     severity="MEDIUM",
@@ -361,7 +367,7 @@ class PatternDetector:
                     description=f"Rapid file access detected: {len(window_events)} files "
                                f"accessed in {time_diff:.1f} seconds",
                     indicators={
-                        'access_rate': len(window_events) / time_diff,
+                        'access_rate': access_rate,
                         'unique_extensions': len(set(e.path.suffix for e in window_events))
                     }
                 )

@@ -1,0 +1,58 @@
+# filters.yaml - Event filtering configuration
+
+# Event types to include (empty = all)
+event_types:
+  - ItemRemoved
+  - ItemCreated
+  - ItemRenamed
+  - ItemModified
+
+# Path patterns (regex supported)
+paths:
+  include:
+    - "^/Users/.*/Downloads/"
+    - "^/Applications/"
+    - "^/tmp/"
+    - "^/var/tmp/"
+    - "^/Users/.*/Library/LaunchAgents/"
+    - "^/Library/LaunchDaemons/"
+  exclude:
+    - "^/System/Library/"  # exclude system files
+    - "^/private/var/log/"  # exclude logs
+
+# File extensions to focus on
+extensions:
+  executables:
+    - .app
+    - .command
+    - .sh
+    - .py
+    - .pl
+    - .rb
+    - .jar
+  documents:
+    - .pdf
+    - .doc
+    - .docx
+    - .xls
+    - .xlsx
+  archives:
+    - .zip
+    - .dmg
+    - .pkg
+    - .tar
+    - .gz
+  suspicious:
+    - .exe
+    - .dll
+    - .scr
+    - .encrypted
+    - .locked
+
+# Time range filter (optional)
+time_range:
+  start: "2025-10-01T00:00:00Z"
+  end: "2025-10-26T23:59:59Z"
+
+# Minimum priority score (0-100)
+min_priority: 40

@@ -81,34 +81,40 @@ mfaa --version
 #### Basic Usage
 
 ```bash
-# Method 1: Full analysis with sudo (collection + analysis)
-sudo python3 -m mfaa.cli analyze --volume / --output ./analysis --format html
+# Activate virtual environment first
+source .venv/bin/activate
 
-# Method 2: Quick analysis (using pre-collected data - no sudo needed)
+# Method 1: Full analysis with sudo (collection + analysis)
+sudo -E .venv/bin/python3 -m mfaa.cli analyze --volume / --output ./analysis --format html
+
+# Method 2: Analysis without sudo (using pre-parsed data)
+python3 -m mfaa.cli analyze --skip-collection --input parsed.json --output ./reports --format html
+
+# Method 3: Quick analysis (using pre-collected data)
 python3 scripts/generate_forensic_report.py
 
 # Open the interactive HTML report
-open ./output/forensic_reports/forensic_analysis.html
-open ./output/forensic_reports/executive_summary.html
+open ./analysis/analysis_*/report.html
+open ./analysis/analysis_*/executive_summary.html
 ```
 
 #### Advanced Usage
 
 ```bash
 # Gather available artifacts (scan without collection - no sudo needed)
-python3 -m mfaa.cli gather --volume / --output artifact_scan.json
+python3 -m mfaa.cli gather --volume /
 
 # Collect FSEvents only (requires sudo)
-sudo python3 -m mfaa.cli collect --volume / --output-dir ./collected
+sudo -E .venv/bin/python3 -m mfaa.cli collect --volume / --output ./collected
 
 # Parse collected data (no sudo needed)
-python3 -m mfaa.cli parse_cmd ./collected/.fseventsd --output parsed.json
+python3 -m mfaa.cli parse ./collected/.fseventsd --output parsed.json
 
 # Generate reports from parsed data
-python3 -m mfaa.cli report_cmd parsed.json --format html --output ./reports
+python3 -m mfaa.cli report parsed.json --format html --output ./reports/report.html
 
-# Filter high-priority events only
-python3 -m mfaa.cli analyze --output ./analysis --min-priority 70 --format all
+# Filter high-priority events only (requires sudo for collection)
+sudo -E .venv/bin/python3 -m mfaa.cli analyze --output ./analysis --min-priority 70 --format all
 ```
 
 #### Docker Usage
@@ -308,34 +314,40 @@ mfaa --version
 #### Sử dụng cơ bản
 
 ```bash
-# Phương pháp 1: Phân tích đầy đủ với sudo (thu thập + phân tích)
-sudo python3 -m mfaa.cli analyze --volume / --output ./analysis --format html
+# Kích hoạt môi trường ảo trước
+source .venv/bin/activate
 
-# Phương pháp 2: Phân tích nhanh (sử dụng dữ liệu đã thu thập - không cần sudo)
+# Phương pháp 1: Phân tích đầy đủ với sudo (thu thập + phân tích)
+sudo -E .venv/bin/python3 -m mfaa.cli analyze --volume / --output ./analysis --format html
+
+# Phương pháp 2: Phân tích không cần sudo (sử dụng dữ liệu đã phân tích)
+python3 -m mfaa.cli analyze --skip-collection --input parsed.json --output ./reports --format html
+
+# Phương pháp 3: Phân tích nhanh (sử dụng dữ liệu đã thu thập)
 python3 scripts/generate_forensic_report.py
 
 # Mở báo cáo HTML tương tác
-open ./output/forensic_reports/forensic_analysis.html
-open ./output/forensic_reports/executive_summary.html
+open ./analysis/analysis_*/report.html
+open ./analysis/analysis_*/executive_summary.html
 ```
 
 #### Sử dụng nâng cao
 
 ```bash
 # Quét các artifact có sẵn (không thu thập - không cần sudo)
-python3 -m mfaa.cli gather --volume / --output artifact_scan.json
+python3 -m mfaa.cli gather --volume /
 
 # Thu thập chỉ FSEvents (cần sudo)
-sudo python3 -m mfaa.cli collect --volume / --output-dir ./collected
+sudo -E .venv/bin/python3 -m mfaa.cli collect --volume / --output ./collected
 
 # Phân tích dữ liệu đã thu thập (không cần sudo)
-python3 -m mfaa.cli parse_cmd ./collected/.fseventsd --output parsed.json
+python3 -m mfaa.cli parse ./collected/.fseventsd --output parsed.json
 
 # Tạo báo cáo từ dữ liệu đã phân tích
-python3 -m mfaa.cli report_cmd parsed.json --format html --output ./reports
+python3 -m mfaa.cli report parsed.json --format html --output ./reports/report.html
 
-# Lọc chỉ các sự kiện ưu tiên cao
-python3 -m mfaa.cli analyze --output ./analysis --min-priority 70 --format all
+# Lọc chỉ các sự kiện ưu tiên cao (cần sudo để thu thập)
+sudo -E .venv/bin/python3 -m mfaa.cli analyze --output ./analysis --min-priority 70 --format all
 ```
 
 #### Sử dụng Docker
