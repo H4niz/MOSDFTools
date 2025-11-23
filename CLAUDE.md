@@ -2,6 +2,7 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+
 ## Project Overview
 
 **macOS Forensics Artifacts Analyzer (mFAA)** - A digital forensics tool for macOS live acquisition and analysis of FSEvents and Extended Attributes. This tool helps forensics investigators analyze file system activities on modern macOS systems (10.13+) with APFS volumes.

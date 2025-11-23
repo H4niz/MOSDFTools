@@ -1,0 +1,1297 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trình bày: Phát triển công cụ điều tra số macOS (mFAA)</title>
+    
+    <!-- Google Fonts (Poppins for Headings, Lato for Body) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Lato:wght@400;700&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        :root {
+            /* 1. Phân tích nhận diện thương hiệu ACTVN (Theme Sáng) */
+            --bg-color: #FFFFFF; /* Nền trắng theo yêu cầu */
+            --text-primary: #0a2a4d; /* Xanh Navy đậm */
+            --text-secondary: #4a5569; /* Xám-Tối */
+            --accent-primary: #0a2a4d; /* Xanh Navy cho tiêu đề chính */
+            --accent-secondary: #fdd017; /* Vàng Gold cho nhấn mạnh */
+            --accent-critical: #d90000; /* Đỏ cho cảnh báo */
+            --accent-light-bg: #f4f8fc; /* Xám-Xanh rất nhạt */
+            --border-color: #e0e6ed;
+            
+            --font-heading: 'Poppins', sans-serif;
+            --font-body: 'Lato', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body {
+            height: 100%;
+            font-family: var(--font-body);
+            background-color: var(--accent-light-bg); /* Nền ngoài slide */
+            color: var(--text-secondary);
+            line-height: 1.6;
+            overflow: hidden; /* Ngăn cuộn trang tổng */
+        }
+
+        .presentation-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh; /* Full viewport height */
+            width: 100%;
+        }
+
+        /* --- Header --- */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2.5rem;
+            border-bottom: 2px solid var(--border-color);
+            background-color: var(--bg-color); /* Nền trắng */
+            z-index: 10;
+            flex-shrink: 0; 
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .logo-container img {
+            max-height: 50px; 
+            width: auto;
+        }
+        
+        .title-container {
+            text-align: right;
+        }
+
+        .title-container h1 {
+            font-family: var(--font-heading);
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--accent-primary);
+        }
+
+        .title-container p {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        /* --- Slides Container (Nơi chứa slide 16:9) --- */
+        .slides-container {
+            flex: 1; /* Lấp đầy không gian còn lại */
+            position: relative;
+            overflow: hidden;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+        }
+
+        /* 2. Xây dựng kích thước trang theo tỉ lệ 16:9 */
+        .slide {
+            width: 100%;
+            height: 100%;
+            max-width: 1280px; 
+            max-height: 720px; 
+            aspect-ratio: 16 / 9;
+            
+            background-color: var(--bg-color); /* Nền trắng */
+            position: absolute;
+            
+            /* THAY ĐỔI: Padding-top nhỏ lại, padding-bottom lớn hơn để nội dung không bị dính sát */
+            padding: 3rem 5rem 4rem 5rem;
+            
+            opacity: 0;
+            visibility: hidden;
+            transform: scale(0.95);
+            transition: opacity 0.4s ease-in-out, visibility 0.4s ease-in-out, transform 0.4s ease-in-out;
+            
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* Giữ slide cố định, nội dung bên trong cuộn */
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .slide.active {
+            opacity: 1;
+            visibility: visible;
+            transform: scale(1);
+        }
+
+        .slide-content {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            z-index: 2;
+            position: relative;
+            
+            /* === YÊU CẦU MỚI: Thêm thanh cuộn cho từng slide === */
+            overflow-y: auto;
+            
+            /* Thêm padding-right để thanh cuộn không đè lên nội dung */
+            padding-right: 15px; 
+        }
+
+        /* 5. Đặt logo ở mọi trang chiếu */
+        .slide-logo {
+            position: absolute;
+            top: 40px;
+            right: 50px;
+            height: 80px;
+            width: auto;
+            z-index: 10;
+            opacity: 0.9;
+        }
+
+        /* === Kiểu chữ & Nội dung Slide === */
+        .slide h2 {
+            font-family: var(--font-heading);
+            font-size: 2.5rem; /* 40px */
+            font-weight: 600;
+            color: var(--accent-primary); /* Navy */
+            margin-bottom: 2rem;
+            border-bottom: 3px solid var(--border-color);
+            padding-bottom: 0.5rem;
+            width: 100%;
+            padding-right: 150px; /* Chừa không gian cho logo */
+            flex-shrink: 0; /* Giữ tiêu đề cố định khi cuộn */
+        }
+        
+        .slide h3 {
+            font-family: var(--font-heading);
+            font-size: 1.75rem; /* 28px */
+            font-weight: 600;
+            color: var(--accent-primary); /* Navy */
+            margin-bottom: 1rem;
+        }
+
+        .slide p, .slide li {
+            font-size: 1.125rem; /* 18px */
+            color: var(--text-secondary); /* Slate */
+            margin-bottom: 0.75rem;
+            line-height: 1.6;
+        }
+
+        .slide ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .slide ul li {
+            position: relative;
+            padding-left: 2.25rem;
+            margin-bottom: 1rem;
+        }
+
+        .slide ul li::before {
+            content: '\f0da'; /* FontAwesome angle-right */
+            font-family: 'Font Awesome 6 Free';
+            font-weight: 900;
+            position: absolute;
+            left: 0;
+            top: 4px;
+            color: var(--accent-secondary); /* Gold */
+            font-size: 1.2rem;
+        }
+        
+        .slide strong {
+             color: var(--accent-primary); /* Navy */
+             font-weight: 700;
+        }
+
+        /* === Các Layout Cụ thể === */
+        
+        .title-slide {
+            justify-content: center;
+            align-items: flex-start;
+            overflow-y: hidden; /* Slide tiêu đề không cần cuộn */
+        }
+        .title-slide h1 {
+            font-size: 3rem; /* 48px */
+            line-height: 1.2;
+            margin-bottom: 1rem;
+            color: var(--accent-primary);
+        }
+        .title-slide p {
+            font-size: 1.25rem; /* 20px */
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+        .title-slide .presenter-info {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            margin-top: 2.5rem;
+        }
+        .title-slide .presenter-info strong {
+            color: var(--text-primary);
+        }
+
+        .two-columns {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2.5rem;
+            align-items: flex-start;
+            width: 100%;
+            margin-bottom: 1rem; /* Thêm margin-bottom để không bị dính */
+        }
+        
+        .three-columns {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            align-items: flex-start;
+            width: 100%;
+            margin-bottom: 1rem; /* Thêm margin-bottom */
+        }
+        
+        .column {
+            background-color: var(--accent-light-bg);
+            padding: 1.5rem 2rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            height: 100%;
+        }
+        
+        .column.critical {
+            background-color: #fff5f5;
+            border-color: var(--accent-critical);
+        }
+        .column.critical h3 {
+            color: var(--accent-critical);
+        }
+        .column.critical i {
+            color: var(--accent-critical);
+        }
+        
+        .column h3 {
+            margin-top: 0;
+            font-size: 1.5rem; /* 24px */
+            color: var(--accent-primary);
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.5rem;
+        }
+        
+        .column p, .column li {
+            font-size: 1rem; /* 16px */
+        }
+        
+        .column ul li::before {
+             content: '\f00c'; /* check */
+             font-size: 1rem;
+             color: var(--accent-secondary);
+        }
+        
+        .column .icon {
+            font-size: 2.5rem;
+            color: var(--accent-secondary); /* Gold */
+            margin-bottom: 1rem;
+            text-align: center;
+            width: 100%;
+        }
+        
+        .icon-list {
+            padding-top: 1rem;
+            width: 100%;
+        }
+        .icon-list.gold li i {
+            color: var(--accent-secondary);
+        }
+        
+        .icon-list li {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 1.5rem;
+            padding-left: 0;
+        }
+        
+        .icon-list li::before {
+            content: none; /* Tắt bullet mặc định */
+        }
+        
+        .icon-list li i {
+            font-size: 2rem;
+            color: var(--accent-primary); /* Navy */
+            margin-right: 1.5rem;
+            margin-top: 4px;
+            width: 40px;
+            text-align: center;
+        }
+        
+        .icon-list li div {
+            flex: 1;
+        }
+        
+        .icon-list li strong {
+            font-size: 1.25rem;
+            color: var(--accent-primary);
+            font-weight: 600;
+        }
+        
+        .icon-list li p {
+            font-size: 1rem;
+            margin-bottom: 0;
+        }
+        
+        .table-layout {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        .table-layout th, .table-layout td {
+            border: 1px solid var(--border-color);
+            padding: 0.75rem 1rem;
+            text-align: left;
+            vertical-align: middle;
+            color: var(--text-secondary);
+        }
+        .table-layout th {
+            background-color: var(--accent-light-bg);
+            color: var(--accent-primary);
+            font-family: var(--font-heading);
+            font-size: 1rem;
+        }
+        .table-layout tr:nth-child(even) {
+            background-color: #fcfdff;
+        }
+        .table-layout i {
+            margin-right: 0.5rem;
+            font-size: 1.1rem;
+            text-align: center;
+            width: 20px;
+        }
+        .fa-check { color: #22c55e; }
+        .fa-times { color: var(--accent-critical); }
+        .fa-question, .fa-minus { color: #f59e0b; }
+        
+        .chart-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            width: 100%;
+            flex: 1;
+            justify-content: center;
+        }
+        .bar {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+        .bar .label {
+            color: var(--text-secondary);
+            flex: 0 0 250px;
+            font-weight: 700;
+            text-align: right;
+            font-size: 1.1rem;
+        }
+        .bar .bar-inner {
+            background-color: var(--accent-light-bg);
+            border-radius: 8px;
+            flex-grow: 1;
+            height: 40px;
+            border: 1px solid var(--border-color);
+        }
+        .bar .bar-fill {
+            align-items: center;
+            border-radius: 8px;
+            color: var(--text-primary);
+            display: flex;
+            font-size: 1rem;
+            font-weight: 700;
+            height: 100%;
+            justify-content: flex-end;
+            padding-right: 15px;
+            background: linear-gradient(90deg, #fde047, #fdd017);
+            white-space: nowrap;
+        }
+        
+        .qa-slide {
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            overflow-y: hidden; /* Slide Q&A không cần cuộn */
+        }
+         .qa-slide h1 {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            color: var(--accent-primary);
+         }
+         .qa-slide p {
+            font-size: 1.5rem;
+            color: var(--text-secondary);
+         }
+
+        /* 3. Xây dựng nút chuyển trang nằm ngoài trang chiếu */
+        footer {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem 2.5rem;
+            background-color: var(--bg-color); /* Nền trắng */
+            z-index: 10;
+            flex-shrink: 0;
+            border-top: 2px solid var(--border-color);
+        }
+
+        .nav-button {
+            background-color: var(--accent-primary); /* Navy */
+            color: var(--text-primary); /* White */
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 600;
+            font-family: var(--font-heading);
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin: 0 1rem;
+        }
+
+        .nav-button:hover:not(:disabled) {
+            background-color: #004a99; /* Lighter navy */
+        }
+
+        .nav-button:disabled {
+            background-color: #a0aec0;
+            color: #e0e6ed;
+            cursor: not-allowed;
+        }
+
+        #pageCounter {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+            min-width: 100px;
+            text-align: center;
+        }
+        
+        /* === TÙY CHỈNH THANH CUỘN === */
+        .slide-content::-webkit-scrollbar {
+            width: 10px;
+        }
+        .slide-content::-webkit-scrollbar-track {
+            background: var(--accent-light-bg); 
+            border-radius: 10px;
+        }
+        .slide-content::-webkit-scrollbar-thumb {
+            background: #a0aec0; /* Xám trung tính */
+            border-radius: 10px;
+        }
+        .slide-content::-webkit-scrollbar-thumb:hover {
+            background: var(--text-secondary); /* Xám đậm hơn */
+        }
+        
+    </style>
+</head>
+<body>
+
+    <div class="presentation-container">
+        
+        <header>
+            <div class="logo-container">
+                <img src="https://cdn.haitrieu.com/wp-content/uploads/2021/10/Logo-Hoc-Vien-Ky-Thuat-Mat-Ma-ACTVN.png" alt="ACTVN Logo">
+            </div>
+            <div class="title-container">
+                <h1>Báo cáo Nghiên cứu: Công cụ Điều tra số macOS (mFAA)</h1>
+                <p>An toàn Thông tin - CHAT3P01 & CHAT1137</p>
+            </div>
+        </header>
+
+        <main class="slides-container">
+
+            <!-- SLIDE 1: Title -->
+            <section class="slide active" id="slide1">
+                <img src="https://cdn.haitrieu.com/wp-content/uploads/2021/10/Logo-Hoc-Vien-Ky-Thuat-Mat-Ma-ACTVN.png" alt="ACTVN Logo" class="slide-logo">
+                <div class="slide-content title-slide">
+                    <p style="color: var(--text-secondary);">BÁO CÁO NGHIÊN CỨU</p>
+                    <h1>PHÁT TRIỂN CÔNG CỤ ĐIỀU TRA SỐ MÃ NGUỒN MỞ: macOS LIVE ACQUISITION & ARTIFACTS ANALYSIS TOOL</h1>
+                    <div class="presenter-info">
+                        <strong>Học viên thực hiện:</strong> NGUYỄN LÊ QUỐC ANH (CHAT3P01)<br>
+                        <strong>Học viên thực hiện:</strong> HỒ VĂN NGUYÊN (CHAT1137)<br>
+                        <strong>Người hướng dẫn:</strong> PGS.TS ĐẶNG TRẦN KHÁNH<br>
+                        <strong>Đơn vị:</strong> HỌC VIỆN KỸ THUẬT MẬT MÃ PHÂN HIỆU TP.HCM
+                    </div>
+                </div>
+            </section>
+            
+            <!-- SLIDE 2: Bối cảnh -->
+            <section class="slide" id="slide2">
+                <img src="https://cdn.haitrieu.com/wp-content/uploads/2021/10/Logo-Hoc-Vien-Ky-Thuat-Mat-Ma-ACTVN.png" alt="ACTVN Logo" class="slide-logo">
+                <div class="slide-content">
+                    <h2>Chương 1: Bối cảnh & Vấn đề</h2>
+                    <ul class="icon-list">
+                        <li>
+                            <i class="fas fa-chart-line"></i>
+                            <div>
+                                <strong>Sự phổ biến của macOS</strong>
+                                <p>Hệ điều hành macOS ngày càng phổ biến trong doanh nghiệp (thị phần >16.3%), trở thành mục tiêu của nhiều cuộc tấn công.</p>
+                            </div>
+                        </li>
+                        <li>
+                            <i class="fas fa-microchip"></i>
+                            <div>
+                                <strong>Bảo mật Phần cứng Mới</strong>
+                                <p>Apple Silicon (M1/M2/M3) và T2 Security Chip tích hợp mã hóa sâu vào phần cứng (Secure Enclave).</p>
+                            </div>
+                        </li>
+                         <li>
+                            <i class="fas fa-tools"></i>
+                            <div>
+                                <strong>Thiếu hụt Công cụ</strong>
+                                <p>Các công cụ điều tra (forensics) truyền thống chủ yếu tập trung vào Windows và không còn hiệu quả trên macOS hiện đại.</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- SLIDE 3: Thách thức cốt lõi -->
+            <section class="slide" id="slide3">
+                <img src="https://cdn.haitrieu.com/wp-content/uploads/2021/10/Logo-Hoc-Vien-Ky-Thuat-Mat-Ma-ACTVN.png" alt="ACTVN Logo" class="slide-logo">
+                <div class="slide-content">
+                    <h2 style="color: var(--accent-critical);">Vấn đề Cốt lõi: Cái chết của "Dead Acquisition"</h2>
+                    <div class="two-columns">
+                        <div class="column critical">
+                            <h3 style="border-bottom-color: var(--accent-critical);"><i class="fas fa-power-off"></i> Dead Acquisition (Thu thập "Chết")</h3>
+                            <p>Đây là phương pháp truyền thống: tắt nguồn thiết bị, tháo ổ cứng và tạo một bản sao bit-by-bit để phân tích.</p>
+                            <p style="font-size: 1.2rem; font-weight: 700; color: var(--accent-critical);">
+                                <i class="fas fa-times-circle"></i> HOÀN TOÀN THẤT BẠI
+                            </p>
+                            <p>Trên các máy M1/M2/T2, dữ liệu được mã hóa bằng <strong>FileVault 2</strong>. Khóa mã hóa nằm trong <strong>Secure Enclave</strong> và không thể bị trích xuất khi máy tắt.</p>
+                        </div>
+                        <div class="column">
+                            <h3><i class="fas fa-bolt"></i> Live Acquisition (Thu thập "Sống")</h3>
+                            <p>Đây là giải pháp duy nhất: thu thập dữ liệu trong khi hệ thống <strong>đang hoạt động</strong> và đã được người dùng mở khóa.</p>
+                            <p style="font-size: 1.2rem; font-weight: 700; color: var(--accent-primary);">
+                                <i class="fas fa-check-circle"></i> LÀ YÊU CẦU BẮT BUỘC
+                            </p>
+                            <p>Tuy nhiên, phương pháp này đòi hỏi các công cụ chuyên biệt, đáng tin cậy và "nhẹ" để giảm thiểu thay đổi lên hệ thống nạn nhân.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- SLIDE 4: Mục tiêu nghiên cứu -->
+            <section class="slide" id="slide4">
+                <img src="https://cdn.haitrieu.com/wp-content/uploads/2021/10/Logo-Hoc-Vien-Ky-Thuat-Mat-Ma-ACTVN.png" alt="ACTVN Logo" class="slide-logo">
+                <div class="slide-content">
+                    <h2>Chương 1: Mục tiêu Nghiên cứu</h2>
+                    <ul class="icon-list gold">
+                        <li>
+                            <i class="fas fa-laptop-code"></i>
+                            <div>
+                                <strong>1. Xây dựng Công cụ (mFAA)</strong>
+                                <p>Phát triển <strong>mFAA (macOS Forensics Artifacts Analyzer)</strong> - công cụ mã nguồn mở, production-ready cho live acquisition.</p>
+                            </div>
+                        </li>
+                        <li>
+                            <i class="fas fa-magnifying-glass"></i>
+                            <div>
+                                <strong>2. Phân tích Artifacts chính</strong>
+                                <p>Tập trung vào 2 artifacts "vàng": <strong>FSEvents</strong> (lịch sử file) và <strong>Extended Attributes</strong> (nguồn gốc file).</p>
+                            </div>
+                        </li>
+                        <li>
+                            <i class="fas fa-cogs"></i>
+                            <div>
+                                <strong>3. Tự động hóa Phân tích</strong>
+                                <p>Phát triển thuật toán <strong>Priority Scoring</strong> và <strong>Pattern Detection</strong> để tự động hóa việc phân tích hàng triệu sự kiện.</p>
+                            </div>
+                        </li>
+                         <li>
+                            <i class="fas fa-book"></i>
+                            <div>
+                                <strong>4. Đóng góp Khoa học</strong>
+                                <p>Nghiên cứu và tài liệu hóa cấu trúc <strong>FSEvents v3</strong> (trên macOS Sequoia) - định dạng mới chưa có tài liệu công khai.</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </section>
+        
+            <!-- SLIDE 5: Cơ sở lý thuyết - FSEvents -->
+            <section class="slide" id="slide5">
+                <img src="https://cdn.haitrieu.com/wp-content/uploads/2021/10/Logo-Hoc-Vien-Ky-Thuat-Mat-Ma-ACTVN.png" alt="ACTVN Logo" class="slide-logo">
+                <div class="slide-content">
+                    <h2>Chương 2: Cơ sở Lý thuyết - FSEvents</h2>
+                    <div class="two-columns">
+                        <div class="column">
+                            <h3><i class="fas fa-file-lines"></i> FSEvents là gì?</h3>
+                            <p>Là một "Hộp đen" (Flight Data Recorder) của hệ thống tệp tin macOS.</p>
+                            <p>Nó ghi lại <strong>MỌI</strong> thay đổi: file được tạo, xóa, sửa, đổi tên, di chuyển...</p>
+                            <p>FSEvents được lưu trữ tại <code>/.fseventsd</code>.</p>
+                        </div>
+                        <div class="column">
+                            <h3><i class="fas fa-search-location"></i> Tại sao FSEvents quan trọng?</h3>
+                            <ul>
+                                <li><strong>Tái tạo Timeline:</strong> Cho phép điều tra viên "tua lại" chính xác những gì đã xảy ra.</li>
+                                <li><strong>Phát hiện Ransomware:</strong> Hiển thị hàng loạt hành vi đổi tên file (vd: <code>.txt</code> -> <code>.encrypted</code>).</li>
+                                <li><strong>Phát hiện Xóa dấu vết:</strong> Ghi lại cả những file đã bị xóa (<code>ItemRemoved</code>).</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- SLIDE 6: Cơ sở lý thuyết - Extended Attributes (xattr) -->
+            <section class="slide" id="slide6">
+                <img src="https://cdn.haitrieu.com/wp-content/uploads/2021/10/Logo-Hoc-Vien-Ky-Thuat-Mat-Ma-ACTVN.png" alt="ACTVN Logo" class="slide-logo">
+                <div class="slide-content">
+                    <h2>Chương 2: Cơ sở Lý thuyết - Extended Attributes (xattr)</h2>
+                    <div class="two-columns">
+                        <div class="column">
+                            <h3><i class="fas fa-tags"></i> xattr là gì?</h3>
+                            <p>Là metadata (dữ liệu mô tả) ẩn, được đính kèm với một file. Nó không phải là một phần của nội dung file.</p>
+                            <p>MacOS sử dụng xattr để lưu trữ thông tin quan trọng về bảo mật.</p>
+                        </div>
+                        <div class="column">
+                            <h3><i class="fas fa-download"></i> `com.apple.quarantine`</h3>
+                            <p>Đây là xattr quan trọng nhất cho điều tra, tự động gán cho mọi file tải từ Internet.</p>
+                            <p>Nó ghi lại 3 thông tin VÀNG:</p>
+                            <ul>
+                                <li><strong>Timestamp:</strong> Thời điểm file được tải về.</li>
+                                <li><strong>Ứng dụng:</strong> Tên ứng dụng đã tải file (vd: `Safari`, `Google Chrome`).</li>
+                                <li><strong>Nguồn gốc:</strong> URL/Link mà file được tải từ đó.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- SLIDE 7: FSEvents Versions (NEW) -->
+            <section class="slide" id="slide7">
+                <img src="https://cdn.haitrieu.com/wp-content/uploads/2021/10/Logo-Hoc-Vien-Ky-Thuat-Mat-Ma-ACTVN.png" alt="ACTVN Logo" class="slide-logo">
+                <div class="slide-content">
+                    <h2>Đóng góp Khoa học 1: Phân tích các phiên bản FSEvents</h2>
+                    <p style="margin-top: -1rem; margin-bottom: 2rem;">Việc phân tích FSEvents rất phức tạp vì định dạng file thay đổi liên tục và không có tài liệu chính thức.</p>
+                    <div class="three-columns">
+                        <div class="column">
+                            <h3>Version 1 (macOS 10.5-10.12)</h3>
+                            <ul>
+                                <li><strong>Đặc điểm:</strong> Không nén.</li>
+                                <li><strong>Cấu trúc:</strong> Tương đối đơn giản, gồm (Path, EventID, Flags).</li>
+                                <li><strong>Hỗ trợ:</strong> Nhiều công cụ cũ hỗ trợ.</li>
+                            </ul>
+                        </div>
+                        <div class="column">
+                            <h3>Version 2 / DLS (macOS 10.13-14.x)</h3>
+                            <ul>
+                                <li><strong>Đặc điểm:</strong> Nén Gzip.</li>
+                                <li><strong>Cấu trúc:</strong> Phức tạp hơn, header <code>1SLD</code>, <code>2SLD</code>, <code>DLS2</code>.</li>
+                                <li><strong>Hỗ trợ:</strong> Một vài công cụ mã nguồn mở hỗ trợ.</li>
+                            </ul>
+                        </div>
+                        <div class="column critical">
+                            <h3 style="border-bottom-color: var(--accent-critical);"><i class="fas fa-star"></i> Version 3 (macOS 15.x+)</h3>
+                            <ul>
+                                <li><strong>Đặc điểm:</strong> Nén Gzip (tối ưu hơn).</li>
+                                <li><strong>Cấu trúc:</strong> Header <code>3SLD</code>. <strong>Hoàn toàn không có tài liệu.</strong></li>
+                                <li><strong>Hỗ trợ:</strong> <strong>mFAA là công cụ MÃ NGUỒN MỞ ĐẦU TIÊN</strong> dịch ngược và hỗ trợ.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- SLIDE 8: Kiến trúc tổng thể mFAA -->
+            <section class="slide" id="slide8">
+                <img src="https://cdn.haitrieu.com/wp-content/uploads/2021/10/Logo-Hoc-Vien-Ky-Thuat-Mat-Ma-ACTVN.png" alt="ACTVN Logo" class="slide-logo">
+                <div class="slide-content">
+                    <h2>Chương 5: Kiến trúc tổng thể mFAA</h2>
+                    <p style="text-align: center; margin-top: -1.5rem; margin-bottom: 2rem;">Công cụ được thiết kế theo kiến trúc modular với 6 module chính:</p>
+                    <div class="three-columns">
+                        <div class="column">
+                            <div class="icon"><i class="fas fa-download"></i></div>
+                            <h3>1. Collection</h3>
+                            <p>Thu thập FSEvents, xattr từ live system, đảm bảo chuỗi giám sát (chain of custody) với mã hash SHA-256.</p>
+                        </div>
+                        <div class="column">
+                            <div class="icon"><i class="fas fa-microchip"></i></div>
+                            <h3>2. Parser</h3>
+                            <p>Phân tích (parse) các định dạng binary phức tạp của FSEvents, bao gồm v1, v2/DLS và <strong>v3 mới nhất</strong>.</p>
+                        </div>
+                        <div class="column">
+                            <div class="icon"><i class="fas fa-brain"></i></div>
+                            <h3>3. Analyzer</h3>
+                            <p>Lõi phân tích: Lọc nhiễu, chấm điểm ưu tiên (Scoring) và phát hiện mẫu (Pattern Detection).</p>
+                        </div>
+                    </div>
+                    <div class="three-columns" style="margin-top: 1.5rem;">
+                        <div class="column">
+                            <div class="icon"><i class="fas fa-clock"></i></div>
+                            <h3>4. Timeline Gen</h3>
+                            <p>Tạo dòng thời gian (timeline) sự kiện hoàn chỉnh, đã được sắp xếp và làm giàu dữ liệu.</p>
+                        </div>
+                        <div class="column">
+                            <div class="icon"><i class="fas fa-file-alt"></i></div>
+                            <h3>5. Reporting</h3>
+                            <p>Xuất báo cáo đa định dạng (CSV, JSON, và HTML tương tác) cho điều tra viên.</p>
+                        </div>
+                        <div class="column">
+                            <div class="icon"><i class="fas fa-terminal"></i></div>
+                            <h3>6. CLI Interface</h3>
+                            <p>Giao diện dòng lệnh (Command Line Interface) để điều khiển toàn bộ quy trình.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- SLIDE 9: Module Deep Dive: Collection (NEW) -->
+            <section class="slide" id="slide9">
+                <img src="https://cdn.haitrieu.com/wp-content/uploads/2021/10/Logo-Hoc-Vien-Ky-Thuat-Mat-Ma-ACTVN.png" alt="ACTVN Logo" class="slide-logo">
+                <div class="slide-content">
+                    <h2>Chương 5: Module 1 - Collection</h2>
+                    <ul class="icon-list">
+                        <li>
+                            <i class="fas fa-user-shield"></i>
+                            <div>
+                                <strong>Yêu cầu Đặc quyền (Sudo)</strong>
+                                <p>Việc thu thập FSEvents từ <code>/.fseventsd</code> yêu cầu quyền `root` (sudo), vì đây là thư mục hệ thống được bảo vệ.</p>
+                            </div>
+                        </li>
+                        <li>
+                            <i class="fas fa-link"></i>
+                            <div>
+                                <strong>Đảm bảo Chuỗi Giám sát (Chain of Custody)</strong>
+                                <p>Công cụ không phân tích trực tiếp trên file gốc. Nó sao chép (copy) toàn bộ thư mục <code>.fseventsd</code> vào thư mục đầu ra.</p>
+                            </div>
+                        </li>
+                        <li>
+                            <i class="fas fa-hashtag"></i>
+                            <div>
+                                <strong>Xác thực Toàn vẹn (Hash Verification)</strong>
+                                <p>Sau khi sao chép, mFAA tự động tính toán hash <strong>SHA-256</strong> cho mọi file đã thu thập để đảm bảo tính toàn vẹn, chống chối cãi.</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- SLIDE 10: Module Deep Dive: Parser (NEW) -->
+            <section class="slide" id="slide10">
+                <img src="https://cdn.haitrieu.com/wp-content/uploads/2021/10/Logo-Hoc-Vien-Ky-Thuat-Mat-Ma-ACTVN.png" alt="ACTVN Logo" class="slide-logo">
+                <div class="slide-content">
+                    <h2>Chương 5: Module 2 - Parser (Đóng góp chính)</h2>
+                    <p style="text-align: center; margin-top: -1.5rem; margin-bottom: 2rem;">Đây là lõi kỹ thuật phức tạp nhất, xử lý các định dạng binary không có tài liệu.</p>
+                    <div class="three-columns">
+                        <div class="column">
+                            <h3><i class="fas fa-file-zipper"></i> Tự động Giải nén</h3>
+                            <p>Tự động phát hiện các file FSEvents v2/v3 đã bị nén (Gzip) và giải nén trong bộ nhớ (in-memory) để phân tích.</p>
+                        </div>
+                        <div class="column">
+                            <h3><i class="fas fa-stream"></i> Phân tích Dòng (Streaming)</h3>
+                            <p>Đọc file theo từng "page" (trang) để tối ưu bộ nhớ, cho phép xử lý các file FSEvents log nặng hàng Gigabyte.</p>
+                        </div>
+                        <div class="column critical">
+                            <h3 style="border-bottom-color: var(--accent-critical);"><i class="fas fa-star"></i> Dịch ngược v3 (3SLD)</h3>
+                            <p>Đóng góp lớn nhất: Module Parser của mFAA là công cụ mã nguồn mở đầu tiên hỗ trợ định dạng v3 mới nhất trên macOS Sequoia.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- SLIDE 11: Vấn đề "Nhiễu" -->
+            <section class="slide" id="slide11">
+                <img src="https://cdn.haitrieu.com/wp-content/uploads/2021/10/Logo-Hoc-Vien-Ky-Thuat-Mat-Ma-ACTVN.png" alt="ACTVN Logo" class="slide-logo">
+                <div class="slide-content">
+                    <h2 style="color: var(--accent-critical);">Chương 5: Vấn đề - "Biển" dữ liệu nhiễu</h2>
+                    <div class="two-columns">
+                        <div class="column critical">
+                            <h3 style="border-bottom-color: var(--accent-critical);">Thực tế Phũ phàng</h3>
+                            <p style="font-size: 3rem; font-weight: 700; text-align: center; margin: 1rem 0;">4.800.000+</p>
+                            <p>Là số lượng FSEvents events trung bình được phân tích trên một hệ thống thử nghiệm. 99.9% trong số đó là "nhiễu" (hoạt động bình thường của hệ thống: cache, logs, temp files).</p>
+                        </div>
+                        <div class="column">
+                            <h3>Câu hỏi của Điều tra viên?</h3>
+                            <p>Làm thế nào để tìm ra "cây kim" (sự kiện tấn công) trong "đống cỏ khô" (4.8 triệu sự kiện)?</p>
+                            <p>Phân tích thủ công là <strong>bất khả thi</strong> và tốn hàng tuần lễ.</p>
+                            <p style="font-size: 1.2rem; font-weight: 700;">-> Cần một cơ chế lọc và xếp hạng thông minh.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SLIDE 12: Giải pháp: Priority Scoring -->
+            <section class="slide" id="slide12">
+                <img src="https://cdn.haitrieu.com/wp-content/uploads/2021/10/Logo-Hoc-Vien-Ky-Thuat-Mat-Ma-ACTVN.png" alt="ACTVN Logo" class="slide-logo">
+                <div class="slide-content">
+                    <h2>Giải pháp 1: Thuật toán Priority Scoring</h2>
+                    <p style="margin-top: -1.5rem; margin-bottom: 2rem;">mFAA sử dụng thuật toán chấm điểm (0-100) đa yếu tố (multi-factor weighted scoring) để xếp hạng mọi sự kiện.</p>
+                    <div class="three-columns">
+                        <div class="column">
+                            <h3><i class="fas fa-clipboard-list"></i> 1. Loại Sự kiện (Event)</h3>
+                            <p>Các hành vi nguy hiểm được chấm điểm cao hơn.</p>
+                            <p><strong>Ví dụ:</strong><br>
+                                `ItemRemoved` (Xóa file): <strong>10 điểm</strong><br>
+                                `ItemRenamed` (Đổi tên): <strong>7 điểm</strong><br>
+                                `ItemModified` (Sửa file): <strong>3 điểm</strong>
+                            </p>
+                        </div>
+                        <div class="column">
+                            <h3><i class="fas fa-folder-open"></i> 2. Đường dẫn (Path)</h3>
+                            <p>Các đường dẫn hệ thống nhạy cảm được chấm điểm cao hơn.</p>
+                             <p><strong>Ví dụ:</strong><br>
+                                `/Library/LaunchDaemons`: <strong>10 điểm</strong><br>
+                                `/Applications`: <strong>8 điểm</strong><br>
+                                `/Users/.../Downloads`: <strong>6 điểm</strong>
+                            </p>
+                        </div>
+                        <div class="column">
+                            <h3><i class="fas fa-file-code"></i> 3. Loại File (Risk)</h3>
+                            <p>Các loại file có khả năng thực thi được chấm điểm cao hơn.</p>
+                             <p><strong>Ví dụ:</strong><br>
+                                `.app`, `.sh`, `.command`: <strong>10 điểm</strong><br>
+                                `.dmg`, `.pkg`: <strong>7 điểm</strong><br>
+                                `.zip`: <strong>5 điểm</strong>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- SLIDE 13: Giải pháp: Pattern Detection -->
+            <section class="slide" id="slide13">
+                <img src="https://cdn.haitrieu.com/wp-content/uploads/2021/10/Logo-Hoc-Vien-Ky-Thuat-Mat-Ma-ACTVN.png" alt="ACTVN Logo" class="slide-logo">
+                <div class="slide-content">
+                    <h2>Giải pháp 2: Tự động phát hiện Mẫu tấn công</h2>
+                    <p style="margin-top: -1.5rem; margin-bottom: 2rem;">Sau khi chấm điểm, mFAA tiếp tục quét timeline để tìm các <strong>chuỗi hành vi</strong> (TTPs) đáng ngờ.</p>
+                    <!-- BỎ style="overflow-y: auto; height: 350px;" ĐỂ CHO PHÉP TOÀN SLIDE CUỘN -->
+                    <ul class="icon-list gold">
+                        <li>
+                            <i class="fas fa-user-secret"></i>
+                            <div>
+                                <strong>1. Ransomware Encryption</strong>
+                                <p>Phát hiện hành vi đổi tên file hàng loạt sang đuôi đáng ngờ (<code>.encrypted</code>, <code>.locked</code>...).</p>
+                            </div>
+                        </li>
+                        <li>
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <div>
+                                <strong>2. Data Exfiltration</strong>
+                                <p>Phát hiện sao chép dữ liệu nhạy cảm hàng loạt ra USB hoặc ổ đĩa ngoài (đường dẫn <code>/Volumes/...</code>).</p>
+                            </div>
+                        </li>
+                         <li>
+                            <i class="fas fa-shield-virus"></i>
+                            <div>
+                                <strong>3. Persistence Mechanisms</strong>
+                                <p>Phát hiện tạo/sửa file trong <code>LaunchAgents</code> hoặc <code>LaunchDaemons</code> để tự khởi động cùng hệ thống.</p>
+                            </div>
+                        </li>
+                        <li>
+                            <i class="fas fa-terminal"></i>
+                            <div>
+                                <strong>4. Suspicious Script Execution</strong>
+                                <p>Giám sát việc tạo các file kịch bản (<code>.sh</code>, <code>.py</code>) ở các vị trí tạm thời (<code>/tmp</code>).</p>
+                            </div>
+                        </li>
+                         <li>
+                            <i class="fas fa-trash-alt"></i>
+                            <div>
+                                <strong>5. Mass Deletion</strong>
+                                <p>Phát hiện hành vi xóa file hàng loạt trong thời gian ngắn (phá hoại dữ liệu).</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </section>
+            
+            <!-- SLIDE 14: Pattern 1 (NEW) -->
+            <section class="slide" id="slide14">
+                <img src="https://cdn.haitrieu.com/wp-content/uploads/2021/10/Logo-Hoc-Vien-Ky-Thuat-Mat-Ma-ACTVN.png" alt="ACTVN Logo" class="slide-logo">
+                <div class="slide-content">
+                    <h2>Phát hiện Mẫu 1: Ransomware & Mass Deletion</h2>
+                    <div class="two-columns">
+                        <div class="column critical">
+                            <h3 style="border-bottom-color: var(--accent-critical);">Ransomware Encryption</h3>
+                            <ul>
+                                <li><strong>Logic:</strong> Tìm kiếm các sự kiện <code>ItemRenamed</code> hoặc <code>ItemCreated</code>...</li>
+                                <li><strong>Signature:</strong>...có phần mở rộng (extension) nằm trong danh sách đen (vd: <code>.encrypted</code>, <code>.locked</code>, <code>.crypt</code>).</li>
+                                <li><strong>Phát hiện:</strong> Nếu > 20 sự kiện khớp, cảnh báo <strong>CRITICAL</strong>.</li>
+                            </ul>
+                        </div>
+                        <div class="column critical">
+                            <h3 style="border-bottom-color: var(--accent-critical);">Mass Deletion (Phá hoại)</h3>
+                            <ul>
+                                <li><strong>Logic:</strong> Sử dụng thuật toán cửa sổ trượt (sliding window) để đếm các sự kiện <code>ItemRemoved</code>.</li>
+                                <li><strong>Threshold:</strong> > 50 file bị xóa trong vòng 60 giây.</li>
+                                <li><strong>Phát hiện:</strong> Cảnh báo <strong>CRITICAL</strong> về hành vi phá hoại dữ liệu.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- SLIDE 15: Pattern 2 (NEW) -->
+            <section class="slide" id="slide15">
+                <img src="https://cdn.haitrieu.com/wp-content/uploads/2021/10/Logo-Hoc-Vien-Ky-Thuat-Mat-Ma-ACTVN.png" alt="ACTVN Logo" class="slide-logo">
+                <div class="slide-content">
+                    <h2>Phát hiện Mẫu 2: Exfiltration & Persistence</h2>
+                    <div class="two-columns">
+                        <div class="column">
+                            <h3>Data Exfiltration (Đánh cắp DL)</h3>
+                            <ul>
+                                <li><strong>Logic:</strong> Tìm kiếm các sự kiện <code>ItemCreated</code> hoặc <code>ItemModified</code>...</li>
+                                <li><strong>Signature:</strong>...có đường dẫn bắt đầu bằng <code>/Volumes/</code> (ngoại trừ ổ đĩa hệ thống) HOẶC tạo file nén (<code>.zip</code>, <code>.rar</code>).</li>
+                                <li><strong>Phát hiện:</strong> Nếu > 10 sự kiện, cảnh báo <strong>HIGH</strong>.</li>
+                            </ul>
+                        </div>
+                        <div class="column">
+                            <h3>Persistence (Duy trì Truy cập)</h3>
+                            <ul>
+                                <li><strong>Logic:</strong> Tìm kiếm sự kiện <code>ItemCreated</code>...</li>
+                                <li><strong>Signature:</strong>...trong các thư mục persistence nhạy cảm như <code>/Library/LaunchAgents</code>, <code>/Library/LaunchDaemons</code>.</li>
+                                <li><strong>Phát hiện:</strong> Bất kỳ sự kiện nào khớp, cảnh báo <strong>HIGH</strong>.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SLIDE 16: Đánh giá Hiệu năng -->
+            <section class="slide" id="slide16">
+                <img src="https://cdn.haitrieu.com/wp-content/uploads/2021/10/Logo-Hoc-Vien-Ky-Thuat-Mat-Ma-ACTVN.png" alt="ACTVN Logo" class="slide-logo">
+                <div class="slide-content">
+                    <h2>Chương 6: Đánh giá & Kết quả (Hiệu năng)</h2>
+                    <div class="chart-container">
+                        <div class="bar">
+                            <div class="label">Độ trưởng thành (Maturity)</div>
+                            <div class="bar-inner"><div class="bar-fill" style="width: 90%;">90 / 100 (Production Ready)</div></div>
+                        </div>
+                        <div class="bar">
+                            <div class="label">Tỷ lệ Test Pass</div>
+                            <div class="bar-inner"><div class="bar-fill" style="width: 93%;">93% (170 / 183 tests)</div></div>
+                        </div>
+                        <div class="bar">
+                            <div class="label">Code Coverage (Cần cải thiện)</div>
+                            <div class="bar-inner"><div class="bar-fill" style="width: 57%; background: linear-gradient(90deg, #facc15, #eab308);">57%</div></div>
+                        </div>
+                         <div class="bar">
+                            <div class="label">Tốc độ xử lý (Parsing)</div>
+                            <div class="bar-inner"><div class="bar-fill" style="width: 100%; background: linear-gradient(90deg, #22c55e, #16a34a);"> > 10,000 events/giây</div></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- SLIDE 17: Đánh giá Thử nghiệm 1 -->
+            <section class="slide" id="slide17">
+                <img src="https://cdn.haitrieu.com/wp-content/uploads/2021/10/Logo-Hoc-Vien-Ky-Thuat-Mat-Ma-ACTVN.png" alt="ACTVN Logo" class="slide-logo">
+                <div class="slide-content">
+                    <h2>Chương 6: Đánh giá (Thử nghiệm 1: Hệ thống Production)</h2>
+                    <div class="column" style="height: auto;">
+                        <ul>
+                            <li><strong>Hệ điều hành:</strong> macOS Sequoia 15.6.1 (M1 Max)</li>
+                            <li><strong>Định dạng:</strong> FSEvents v3 (3SLD)</li>
+                            <li><strong>Dữ liệu:</strong> 2,115 tệp FSEvents</li>
+                        </ul>
+                    </div>
+                    <div class="two-columns" style="margin-top: 2rem;">
+                         <div class="column" style="text-align: center;">
+                            <h3 style="font-size: 1.2rem; text-align: left;">Tổng số Events đã phân tích</h3>
+                            <div style="font-size: 5rem; font-weight: 700; color: var(--accent-primary); margin: 1rem 0;">4.834.241</div>
+                            <p><strong>Độ chính xác: 100%</strong> (Không có lỗi phân tích v3).</p>
+                         </div>
+                         <div class="column" style="text-align: center;">
+                            <h3 style="font-size: 1.2rem; text-align: left;">Phân loại Ưu tiên (Scoring)</h3>
+                             <div style="font-size: 5rem; font-weight: 700; color: var(--accent-critical); margin: 1rem 0;">0.009%</div>
+                            <p>Chỉ <strong>432 sự kiện</strong> được xếp hạng <strong>CRITICAL</strong>. Giảm 99.99% khối lượng công việc cho điều tra viên.</p>
+                         </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SLIDE 18: Đánh giá Thử nghiệm 2 -->
+            <section class="slide" id="slide18">
+                <img src="https://cdn.haitrieu.com/wp-content/uploads/2021/10/Logo-Hoc-Vien-Ky-Thuat-Mat-Ma-ACTVN.png" alt="ACTVN Logo" class="slide-logo">
+                <div class="slide-content">
+                    <h2>Chương 6: Đánh giá (Thử nghiệm 2: Giả lập Tấn công)</h2>
+                    <div class="two-columns">
+                        <div class="column critical">
+                            <h3 style="border-bottom-color: var(--accent-critical);">Case 1: Giả lập Ransomware</h3>
+                            <ul>
+                                <li><strong>Kịch bản:</strong> Chạy script đổi tên 100 file sang đuôi <code>.encrypted</code> và tạo file <code>RANSOM_NOTE.txt</code>.</li>
+                                <li><strong>Kết quả (mFAA):</strong><br>
+                                     - <i class="fas fa-check"></i> <strong>Phát hiện Ngay lập tức.</strong><br>
+                                     - <i class="fas fa-check"></i> Pattern: <code>ransomware_encryption</code><br>
+                                     - <i class="fas fa-check"></i> Severity: <strong>CRITICAL</strong>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="column">
+                            <h3>Case 2: Giả lập Data Exfiltration</h3>
+                            <ul>
+                                <li><strong>Kịch bản:</strong> Sao chép 50 file PDF, DOCX sang USB (<code>/Volumes/USB_DRIVE</code>) và tạo 1 file <code>.zip</code>.</li>
+                                <li><strong>Kết quả (mFAA):</strong><br>
+                                     - <i class="fas fa-check"></i> <strong>Phát hiện Ngay lập tức.</strong><br>
+                                     - <i class="fas fa-check"></i> Pattern: <code>data_exfiltration</code><br>
+                                     - <i class="fas fa-check"></i> Severity: <strong>HIGH</strong>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SLIDE 19: So sánh (EXPANDED) -->
+            <section class="slide" id="slide19">
+                <img src="https://cdn.haitrieu.com/wp-content/uploads/2021/10/Logo-Hoc-Vien-Ky-Thuat-Mat-Ma-ACTVN.png" alt="ACTVN Logo" class="slide-logo">
+                <div class="slide-content">
+                    <h2>Chương 3: So sánh với các công cụ khác</h2>
+                    <table class="table-layout">
+                        <thead>
+                            <tr>
+                                <th>Tính năng</th>
+                                <th>mFAA (Nghiên cứu)</th>
+                                <th>BlackLight (Thương mại)</th>
+                                <th>mac_apt (Mã nguồn mở)</th>
+                                <th>FSEventsParser (Mã nguồn mở)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Hỗ trợ FSEvents v3 (Sequoia)</strong></td>
+                                <td><i class="fas fa-check"></i> <strong>Hỗ trợ (Đầu tiên)</strong></td>
+                                <td><i class="fas fa-question"></i> (Chưa rõ)</td>
+                                <td><i class="fas fa-times"></i> Không</td>
+                                <td><i class="fas fa-times"></i> Không</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Live Acquisition</strong></td>
+                                <td><i class="fas fa-check"></i> Có</td>
+                                <td><i class="fas fa-check"></i> Có</td>
+                                <td><i class="fas fa-times"></i> Không</td>
+                                <td><i class="fas fa-times"></i> Không</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Priority Scoring</strong></td>
+                                <td><i class="fas fa-check"></i> <strong>Có (Đa yếu tố)</strong></td>
+                                <td><i class="fas fa-times"></i> Không</td>
+                                <td><i class="fas fa-times"></i> Không</td>
+                                <td><i class="fas fa-times"></i> Không</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Pattern Detection</strong></td>
+                                <td><i class="fas fa-check"></i> <strong>Có (5+ mẫu)</strong></td>
+                                <td><i class="fas fa-minus"></i> (Cơ bản)</td>
+                                <td><i class="fas fa-times"></i> Không</td>
+                                <td><i class="fas fa-times"></i> Không</td>
+                            </tr>
+                             <tr>
+                                <td><strong>Báo cáo Tương tác (HTML)</strong></td>
+                                <td><i class="fas fa-check"></i> Có</td>
+                                <td><i class="fas fa-check"></i> Có (GUI)</td>
+                                <td><i class="fas fa-times"></i> Không (Chỉ JSON)</td>
+                                <td><i class="fas fa-times"></i> Không (Chỉ Text)</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Mã nguồn mở (Chi phí)</strong></td>
+                                <td><i class="fas fa-check"></i> <strong>Có (Miễn phí)</strong></td>
+                                <td><i class="fas fa-times"></i> Không (>$3000)</td>
+                                <td><i class="fas fa-check"></i> Có (Miễn phí)</td>
+                                <td><i class="fas fa-check"></i> Có (Miễn phí)</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        
+            <!-- SLIDE 20: Kết luận (EXPANDED) -->
+            <section class="slide" id="slide20">
+                <img src="https://cdn.haitrieu.com/wp-content/uploads/2021/10/Logo-Hoc-Vien-Ky-Thuat-Mat-Ma-ACTVN.png" alt="ACTVN Logo" class="slide-logo">
+                <div class="slide-content">
+                    <h2>Chương 7: Kết luận</h2>
+                    <ul class="icon-list gold" style="padding-top: 0;">
+                        <li>
+                            <i class="fas fa-check-circle"></i>
+                            <div>
+                                <strong>Đã xây dựng thành công công cụ mFAA (production-ready)</strong>
+                                <p>Giải quyết thành công bài toán live acquisition trên macOS hiện đại, vượt qua thách thức của FileVault 2 và Secure Enclave.</p>
+                            </div>
+                        </li>
+                        <li>
+                            <i class="fas fa-star"></i>
+                            <div>
+                                <strong>Đóng góp khoa học quan trọng</strong>
+                                <p>Là công cụ mã nguồn mở đầu tiên dịch ngược và hỗ trợ <strong>FSEvents v3 (Sequoia)</strong>, đồng thời đề xuất thuật toán <strong>Priority Scoring</strong> hiệu quả.</p>
+                            </div>
+                        </li>
+                         <li>
+                            <i class="fas fa-rocket"></i>
+                            <div>
+                                <strong>Đóng góp thực tiễn to lớn</strong>
+                                <p>Cung cấp framework <strong>Pattern Detection</strong> (5+ mẫu), giúp giảm <strong>80%</strong> thời gian điều tra và đạt hiệu năng cao (>10,000 evt/s).</p>
+                            </div>
+                        </li>
+                    </ul>
+                </div>
+            </section>
+            
+            <!-- SLIDE 21: Hạn chế (NEW) -->
+            <section class="slide" id="slide21">
+                <img src="https://cdn.haitrieu.com/wp-content/uploads/2021/10/Logo-Hoc-Vien-Ky-Thuat-Mat-Ma-ACTVN.png" alt="ACTVN Logo" class="slide-logo">
+                <div class="slide-content">
+                    <h2 style="color: var(--accent-critical);">Chương 7: Hạn chế của Nghiên cứu</h2>
+                    <div class="two-columns">
+                        <div class="column critical">
+                            <h3 style="border-bottom-color: var(--accent-critical);">Hạn chế Kỹ thuật</h3>
+                            <ul>
+                                <li><strong>Code Coverage (57%):</strong> Mặc dù test pass rate cao (93%), code coverage cần được cải thiện để đảm bảo mọi edge case.</li>
+                                <li><strong>Rule-based Detection:</strong> Các mẫu tấn công đang dựa trên signature (rule), có thể bị bỏ qua bởi các kỹ thuật tinh vi (cần ML).</li>
+                                <li><strong>Thiếu thông tin Process:</strong> FSEvents không ghi lại *tiến trình nào* (process) gây ra sự kiện. Cần kết hợp với các logs khác.</li>
+                            </ul>
+                        </div>
+                        <div class="column">
+                            <h3>Hạn chế Triển khai</h3>
+                            <ul>
+                                <li><strong>CLI-Only:</strong> Công cụ hiện chỉ có giao diện dòng lệnh (CLI), gây khó khăn cho điều tra viên quen dùng GUI.</li>
+                                <li><strong>Yêu cầu Sudo:</strong> Module Collection bắt buộc phải chạy với quyền `root`, tiềm ẩn rủi ro nếu không tin tưởng công cụ.</li>
+                                <li><strong>Phạm vi Artifacts:</strong> Mới chỉ tập trung vào FSEvents và xattr, chưa mở rộng ra trình duyệt, email, RAM.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SLIDE 22: Hướng phát triển (NEW/EXPANDED) -->
+            <section class="slide" id="slide22">
+                <img src="https://cdn.haitrieu.com/wp-content/uploads/2021/10/Logo-Hoc-Vien-Ky-Thuat-Mat-Ma-ACTVN.png" alt="ACTVN Logo" class="slide-logo">
+                <div class="slide-content">
+                    <h2>Chương 7: Hướng Nghiên cứu Tiếp theo</h2>
+                    <div class="three-columns">
+                        <div class="column">
+                            <h3>Ngắn hạn (3-6 tháng)</h3>
+                            <ul>
+                                <li>Tăng Test Coverage lên >85%.</li>
+                                <li>Phát triển giao diện người dùng (GUI) bằng Web (Flask/FastAPI).</li>
+                                <li>Xuất báo cáo PDF.</li>
+                            </ul>
+                        </div>
+                        <div class="column">
+                            <h3>Trung hạn (6-12 tháng)</h3>
+                            <ul>
+                                <li>Tích hợp <strong>Machine Learning</strong> (Isolation Forest) để phát hiện bất thường (Anomaly Detection).</li>
+                                <li>Hỗ trợ thêm nhiều artifacts (Trình duyệt, Mail, Logs, Keychain).</li>
+                                <li>Chế độ giám sát thời gian thực (Real-time monitoring).</li>
+                            </ul>
+                        </div>
+                        <div class="column">
+                            <h3>Dài hạn (1-2 năm)</h3>
+                            <ul>
+                                <li>Tích hợp SIEM (Splunk, ELK).</li>
+                                <li>Phân tích tương quan đa thiết bị (macOS <-> iOS).</li>
+                                <li>Tích hợp phân tích bộ nhớ (RAM) để lấy thông tin tiến trình.</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <p style="margin-top: 1rem;">Nghiên cứu này mở ra hướng đi về <strong>"contextual-aware correlation"</strong>, kết hợp FSEvents với các nguồn log khác (như Endpoint Security Framework) để liên kết sự kiện file với tiến trình (process) và người dùng (user) cụ thể.</p>
+                </div>
+            </section>
+        
+            <!-- SLIDE 23: Q&A -->
+            <section class="slide" id="slide23">
+                <img src="https://cdn.haitrieu.com/wp-content/uploads/2021/10/Logo-Hoc-Vien-Ky-Thuat-Mat-Ma-ACTVN.png" alt="ACTVN Logo" class="slide-logo">
+                <div class="slide-content qa-slide">
+                    <h1>Cảm ơn đã lắng nghe!</h1>
+                    <p>Câu hỏi & Thảo luận</p>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- 3. Nút chuyển trang nằm ngoài trang chiếu -->
+        <footer>
+            <button id="prevBtn" class="nav-button"><i class="fas fa-arrow-left"></i> Trước</button>
+            <span id="pageCounter">1 / 23</span>
+            <button id="nextBtn" class="nav-button">Sau <i class="fas fa-arrow-right"></i></button>
+        </footer>
+    </div>
+
+    <script>
+        let currentSlideIndex = 1;
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+        
+        const pageCounterEl = document.getElementById('pageCounter');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+
+        function showSlide(index) {
+            // Ẩn slide hiện tại
+            slides.forEach(slide => {
+                slide.classList.remove('active');
+            });
+            
+            // Đặt index mới
+            currentSlideIndex = index;
+            
+            // Hiển thị slide mới
+            const newSlide = document.getElementById('slide' + currentSlideIndex);
+            if (newSlide) {
+                newSlide.classList.add('active');
+            }
+            
+            // Cập nhật bộ đếm trang
+            if (pageCounterEl) {
+                pageCounterEl.textContent = `${currentSlideIndex} / ${totalSlides}`;
+            }
+            
+            // Cập nhật trạng thái nút
+            if (prevBtn && nextBtn) {
+                prevBtn.disabled = (currentSlideIndex === 1);
+                nextBtn.disabled = (currentSlideIndex === totalSlides);
+            }
+        }
+        
+        // Event Listeners cho nút
+        prevBtn.addEventListener('click', () => {
+            if (currentSlideIndex > 1) {
+                showSlide(currentSlideIndex - 1);
+            }
+        });
+        
+        nextBtn.addEventListener('click', () => {
+            if (currentSlideIndex < totalSlides) {
+                showSlide(currentSlideIndex + 1);
+            }
+        });
+        
+        // Event Listeners cho phím
+        document.addEventListener('keydown', function(event) {
+            // Bỏ qua nếu đang nhập liệu trong input/textarea
+            if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+                return;
+            }
+            
+            if (event.key === 'ArrowRight' || event.key === 'PageDown' || event.key === ' ') {
+                event.preventDefault();
+                nextBtn.click(); // Giả lập click nút
+            } else if (event.key === 'ArrowLeft' || event.key === 'PageUp') {
+                event.preventDefault();
+                prevBtn.click(); // Giả lập click nút
+            }
+        });
+
+        // Hiển thị slide đầu tiên khi tải trang
+        window.onload = () => {
+            showSlide(1);
+        };
+    </script>
+</body>
+</html>
